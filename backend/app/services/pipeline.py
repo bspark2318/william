@@ -85,7 +85,26 @@ def publish_issue(db: Session | None = None) -> dict:
         ]
         scored_videos = rank_videos(video_dicts) if video_dicts else []
         scored_videos.sort(key=lambda x: x.get("score", 0), reverse=True)
-        top_video_ids = [v["id"] for v in scored_videos[:3]]
+        id_to_video = {v["id"]: v for v in video_dicts}
+        seen_youtube: set[str] = set()
+        seen_title_norm: set[str] = set()
+        top_video_ids: list[int] = []
+        for sv in scored_videos:
+            row = id_to_video.get(sv["id"])
+            if not row:
+                continue
+            yt = row["youtube_id"]
+            if yt in seen_youtube:
+                continue
+            title_key = " ".join((row.get("title") or "").strip().lower().split())
+            if title_key and title_key in seen_title_norm:
+                continue
+            seen_youtube.add(yt)
+            if title_key:
+                seen_title_norm.add(title_key)
+            top_video_ids.append(row["id"])
+            if len(top_video_ids) >= 3:
+                break
 
         for sv in scored_videos:
             cand = db.query(CandidateVideo).get(sv["id"])

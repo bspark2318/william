@@ -30,6 +30,15 @@ services:
       - william-backend
     logging: *default-logging
 
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower-william
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300 --cleanup william-backend william-frontend
+    logging: *default-logging
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared-william
