@@ -2,6 +2,7 @@ import { Issue } from "@/lib/types";
 import Masthead from "./Masthead";
 import StoryFeed from "./StoryFeed";
 import VideoPreview from "./VideoPreview";
+import WeekNav from "./WeekNav";
 
 interface NewsletterLayoutProps {
   issue: Issue;
@@ -9,6 +10,15 @@ interface NewsletterLayoutProps {
 }
 
 export default function NewsletterLayout({ issue, allIssueIds }: NewsletterLayoutProps) {
+  const sorted = allIssueIds
+    ? [...allIssueIds].sort((a, b) => b.week_of.localeCompare(a.week_of))
+    : [];
+  const currentIdx = sorted.findIndex((i) => i.id === issue.id);
+  const prev = currentIdx >= 0 ? sorted[currentIdx + 1] : undefined;
+  const next = currentIdx > 0 ? sorted[currentIdx - 1] : undefined;
+
+  const videos = (issue.featured_videos ?? []).slice(0, 3);
+
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 pb-16">
       <Masthead
@@ -17,28 +27,44 @@ export default function NewsletterLayout({ issue, allIssueIds }: NewsletterLayou
         issueNumber={issue.edition}
       />
 
+      {sorted.length > 1 && (
+        <WeekNav
+          prevIssueId={prev?.id}
+          nextIssueId={next?.id}
+          prevLabel={prev?.week_of}
+          nextLabel={next?.week_of}
+        />
+      )}
+
       {/* Two-column newspaper layout */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-8 mt-6">
-        {/* Stories — main column */}
         <main className="min-w-0">
           <div className="divider-label">
             <span className="text-[11px] text-ink-light uppercase tracking-[0.2em] font-body whitespace-nowrap font-semibold">
               This Week&apos;s Stories
             </span>
           </div>
-          <StoryFeed stories={issue.stories} />
+          {issue.stories.length > 0 ? (
+            <StoryFeed stories={issue.stories} />
+          ) : (
+            <p className="text-sm text-ink-light italic py-8 text-center">
+              No stories this edition&mdash;check back soon.
+            </p>
+          )}
         </main>
 
-        {/* Sidebar — video + info */}
         <aside className="md:sticky md:top-6 md:self-start space-y-6">
-          {(() => {
-            const raw =
-              issue.featured_videos ?? (issue.featured_video ? [issue.featured_video] : []);
-            const videos = raw.slice(0, 3);
-            return videos.map((video, i) => (
+          {videos.length > 0 ? (
+            videos.map((video, i) => (
               <VideoPreview key={video.id} video={video} showLabel={i === 0} />
-            ));
-          })()}
+            ))
+          ) : (
+            <div className="divider-label">
+              <span className="text-[11px] text-ink-light uppercase tracking-[0.2em] font-body whitespace-nowrap font-semibold">
+                Featured Videos
+              </span>
+            </div>
+          )}
         </aside>
       </div>
 

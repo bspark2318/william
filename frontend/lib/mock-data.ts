@@ -10,7 +10,6 @@ export const MOCK_ISSUE: Issue = {
   week_of: "2026-04-07",
   title: "The Rise of Reasoning Models",
   edition: 2,
-  featured_video: null,
   featured_videos: [
     {
       id: 1,

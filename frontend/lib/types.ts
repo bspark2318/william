@@ -26,8 +26,7 @@ export interface Issue {
   title: string;
   edition: number;
   stories: Story[];
-  featured_video: FeaturedVideo | null;
-  featured_videos?: FeaturedVideo[];
+  featured_videos: FeaturedVideo[];
 }
 
 export interface IssueListItem {

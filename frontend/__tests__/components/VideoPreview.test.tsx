@@ -28,7 +28,9 @@ describe("VideoPreview", () => {
     render(<VideoPreview video={video} />);
 
     const img = screen.getByAltText("My Video");
-    expect(img).toHaveAttribute("src", "https://img.youtube.com/vi/xyz/0.jpg");
+    expect(img.getAttribute("src") ?? "").toContain(
+      encodeURIComponent("https://img.youtube.com/vi/xyz/0.jpg"),
+    );
   });
 
   it("renders description when provided", () => {

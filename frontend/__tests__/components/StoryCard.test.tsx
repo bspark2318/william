@@ -61,7 +61,9 @@ describe("StoryCard", () => {
     // alt="" gives it presentation role, so query by tag
     const img = document.querySelector("img");
     expect(img).not.toBeNull();
-    expect(img).toHaveAttribute("src", "https://example.com/img.jpg");
+    expect(img?.getAttribute("src") ?? "").toContain(
+      encodeURIComponent("https://example.com/img.jpg"),
+    );
   });
 
   it("does not render thumbnail when image_url is absent", () => {

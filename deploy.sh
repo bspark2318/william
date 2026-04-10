@@ -16,6 +16,7 @@ docker push bspark2318/william-backend:arm64
 docker push bspark2318/william-frontend:arm64
 
 echo "=== Syncing config to Raspberry Pi ==="
+ssh "$PI_HOST" "mkdir -p \"$PI_DIR\""
 scp docker-compose.yml "$PI_HOST:$PI_DIR/"
 
 echo "=== Deploying to Raspberry Pi ==="

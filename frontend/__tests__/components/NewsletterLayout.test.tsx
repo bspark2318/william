@@ -11,7 +11,7 @@ describe("NewsletterLayout", () => {
         makeStory({ id: 1, title: "Alpha", display_order: 1 }),
         makeStory({ id: 2, title: "Beta", display_order: 2 }),
       ],
-      featured_video: makeVideo({ id: 1, title: "Solo Video" }),
+      featured_videos: [makeVideo({ id: 1, title: "Solo Video" })],
     });
 
     render(<NewsletterLayout issue={issue} />);
@@ -23,11 +23,11 @@ describe("NewsletterLayout", () => {
     expect(screen.getByRole("heading", { name: "Beta" })).toBeInTheDocument();
   });
 
-  it("uses featured_video as a single sidebar video when featured_videos is absent", () => {
+  it("renders a single sidebar video from featured_videos", () => {
     const v = makeVideo({ id: 9, title: "Only Clip", video_url: "https://example.com/v" });
     const issue = makeIssue({
       stories: [],
-      featured_video: v,
+      featured_videos: [v],
     });
 
     render(<NewsletterLayout issue={issue} />);
@@ -40,7 +40,6 @@ describe("NewsletterLayout", () => {
   it("renders featured_videos with a label on the first item", () => {
     const issue = makeIssue({
       stories: [],
-      featured_video: null,
       featured_videos: [
         makeVideo({ id: 1, title: "First Vid" }),
         makeVideo({ id: 2, title: "Second Vid" }),
@@ -57,7 +56,6 @@ describe("NewsletterLayout", () => {
   it("shows at most three sidebar videos", () => {
     const issue = makeIssue({
       stories: [],
-      featured_video: null,
       featured_videos: [
         makeVideo({ id: 1, title: "V1" }),
         makeVideo({ id: 2, title: "V2" }),

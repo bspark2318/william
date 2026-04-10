@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { FeaturedVideo } from "@/lib/types";
 
 interface VideoPreviewProps {
@@ -23,12 +24,13 @@ export default function VideoPreview({ video, showLabel = false }: VideoPreviewP
         className="block"
       >
         <div className="border border-rule overflow-hidden">
-          {/* Thumbnail */}
           <div className="aspect-video relative overflow-hidden bg-paper-alt">
-            <img
+            <Image
               src={video.thumbnail_url}
               alt={video.title}
-              className="w-full h-full object-cover group-hover:opacity-90 transition-opacity duration-300"
+              fill
+              sizes="300px"
+              className="object-cover group-hover:opacity-90 transition-opacity duration-300"
             />
 
             {/* Play button overlay */}

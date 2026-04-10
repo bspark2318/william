@@ -31,7 +31,7 @@ export function makeIssue(overrides: Partial<Issue> = {}): Issue {
     title: "Test Issue Title",
     edition: 1,
     stories: [makeStory()],
-    featured_video: null,
+    featured_videos: [],
     ...overrides,
   };
 }

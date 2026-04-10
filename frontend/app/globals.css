@@ -66,7 +66,11 @@ body {
 .stagger-4 { animation-delay: 0.16s; }
 .stagger-5 { animation-delay: 0.20s; }
 
-/* Scrollbar styling */
+/* Scrollbar styling (cross-browser) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rule-dark) var(--color-paper-alt);
+}
 ::-webkit-scrollbar {
   width: 6px;
 }

@@ -1,4 +1,6 @@
+import Image from "next/image";
 import { Story } from "@/lib/types";
+import { formatShortDate } from "@/lib/dates";
 
 interface StoryCardProps {
   story: Story;
@@ -12,12 +14,6 @@ export default function StoryCard({ story }: StoryCardProps) {
         ? [story.summary]
         : [];
 
-  const formattedDate = new Date(story.date + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
   return (
     <a
       href={story.url}
@@ -27,13 +23,14 @@ export default function StoryCard({ story }: StoryCardProps) {
     >
       <article className="py-4 transition-colors duration-200">
         <div className="flex gap-5">
-          {/* Thumbnail */}
           {story.image_url && (
-            <div className="hidden sm:block shrink-0 w-28 h-28 overflow-hidden bg-paper-alt">
-              <img
+            <div className="hidden sm:block shrink-0 w-28 h-28 relative overflow-hidden bg-paper-alt">
+              <Image
                 src={story.image_url}
                 alt=""
-                className="w-full h-full object-cover group-hover:opacity-80 transition-opacity duration-300"
+                fill
+                sizes="112px"
+                className="object-cover group-hover:opacity-80 transition-opacity duration-300"
               />
             </div>
           )}
@@ -45,7 +42,7 @@ export default function StoryCard({ story }: StoryCardProps) {
                 {story.source}
               </span>
               <span className="text-rule-dark">&middot;</span>
-              <time dateTime={story.date}>{formattedDate}</time>
+              <time dateTime={story.date}>{formatShortDate(story.date)}</time>
             </div>
 
             {/* Title */}
