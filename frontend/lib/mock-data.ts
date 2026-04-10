@@ -108,7 +108,12 @@ export const MOCK_ISSUE: Issue = {
       id: 5,
       title: "AI Agents Now Handle 40% of Customer Service at Major Banks",
       summary:
-        "A new report from McKinsey reveals that autonomous AI agents have reached a tipping point in financial services, handling everything from account inquiries to fraud detection with minimal human oversight.",
+        "McKinsey: ~40% of bank customer service now agent-driven. Inquiries through fraud, thin human oversight.",
+      bullet_points: [
+        "McKinsey: agents cover ~40% of bank customer-service volume.",
+        "Scope runs account questions through fraud workflows.",
+        "Minimal human oversight at scale in tier-1 banks.",
+      ],
       source: "Financial Times",
       url: "https://ft.com",
       date: "2026-04-03",

@@ -53,5 +53,6 @@ def test_list_and_get_issue(client, db_session):
     assert d["edition"] == 1
     assert len(d["stories"]) == 1
     assert d["stories"][0]["title"] == "S1"
+    assert d["stories"][0]["bullet_points"] == ["Sum"]
     assert len(d["featured_videos"]) == 1
     assert d["featured_videos"][0]["title"] == "V1"
