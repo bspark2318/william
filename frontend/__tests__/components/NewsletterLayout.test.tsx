@@ -54,6 +54,26 @@ describe("NewsletterLayout", () => {
     expect(screen.getByRole("heading", { name: "Second Vid" })).toBeInTheDocument();
   });
 
+  it("shows at most three sidebar videos", () => {
+    const issue = makeIssue({
+      stories: [],
+      featured_video: null,
+      featured_videos: [
+        makeVideo({ id: 1, title: "V1" }),
+        makeVideo({ id: 2, title: "V2" }),
+        makeVideo({ id: 3, title: "V3" }),
+        makeVideo({ id: 4, title: "V4 Hidden" }),
+      ],
+    });
+
+    const { container } = render(<NewsletterLayout issue={issue} />);
+
+    const aside = container.querySelector("aside");
+    expect(aside).toBeTruthy();
+    expect(within(aside as HTMLElement).getAllByRole("link")).toHaveLength(3);
+    expect(screen.queryByRole("heading", { name: "V4 Hidden" })).not.toBeInTheDocument();
+  });
+
   it("renders footer branding", () => {
     const issue = makeIssue({ stories: [] });
     render(<NewsletterLayout issue={issue} />);

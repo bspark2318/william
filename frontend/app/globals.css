@@ -1,12 +1,13 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-paper: #ffffff;
-  --color-paper-alt: #f7f7f5;
-  --color-ink: #121212;
-  --color-ink-light: #5a5a5a;
-  --color-rule: #dfdfdf;
-  --color-rule-dark: #ccc;
+  /* Deep parchment — older paper, more brown */
+  --color-paper: #ddd6c8;
+  --color-paper-alt: #cfc7b7;
+  --color-ink: #1a1814;
+  --color-ink-light: #4d4943;
+  --color-rule: #b8b0a2;
+  --color-rule-dark: #a39a8c;
   --color-accent: #326891;
   --color-accent-dark: #1a4a6e;
 

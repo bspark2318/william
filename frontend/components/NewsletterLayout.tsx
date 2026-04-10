@@ -32,16 +32,11 @@ export default function NewsletterLayout({ issue, allIssueIds }: NewsletterLayou
         {/* Sidebar — video + info */}
         <aside className="md:sticky md:top-6 md:self-start space-y-6">
           {(() => {
-            const videos = issue.featured_videos ?? (issue.featured_video ? [issue.featured_video] : []);
+            const raw =
+              issue.featured_videos ?? (issue.featured_video ? [issue.featured_video] : []);
+            const videos = raw.slice(0, 3);
             return videos.map((video, i) => (
               <VideoPreview key={video.id} video={video} showLabel={i === 0} />
-            ));
-          })()}
-
-          {(() => {
-            const extras = issue.featured_videos?.slice(2) ?? [];
-            return extras.map((video) => (
-              <VideoPreview key={video.id} video={video} />
             ));
           })()}
         </aside>
