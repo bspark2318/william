@@ -33,10 +33,21 @@ def ensure_sqlite_columns() -> None:
     from sqlalchemy import text
 
     with engine.begin() as conn:
-        rows = conn.execute(text("PRAGMA table_info(stories)")).mappings().all()
-        names = {r["name"] for r in rows}
-        if "bullet_points" not in names:
+        story_cols = conn.execute(text("PRAGMA table_info(stories)")).mappings().all()
+        story_names = {r["name"] for r in story_cols}
+        if "bullet_points" not in story_names:
             conn.execute(text("ALTER TABLE stories ADD COLUMN bullet_points TEXT"))
+
+        video_cols = (
+            conn.execute(text("PRAGMA table_info(candidate_videos)")).mappings().all()
+        )
+        video_names = {r["name"] for r in video_cols}
+        if video_cols and "view_count" not in video_names:
+            conn.execute(text("ALTER TABLE candidate_videos ADD COLUMN view_count INTEGER"))
+        if video_cols and "duration_seconds" not in video_names:
+            conn.execute(
+                text("ALTER TABLE candidate_videos ADD COLUMN duration_seconds INTEGER")
+            )
 
 
 def get_db():
