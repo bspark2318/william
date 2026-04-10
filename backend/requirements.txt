@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+tavily-python
+google-api-python-client
+openai
+apscheduler
+pyyaml
+python-dotenv

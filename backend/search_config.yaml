@@ -1,0 +1,15 @@
+news_queries:
+  - "artificial intelligence breakthroughs"
+  - "large language models"
+  - "AI regulation policy"
+  - "machine learning research"
+  - "AI startups funding"
+
+video_queries:
+  - "artificial intelligence explained"
+  - "AI news this week"
+  - "machine learning tutorial"
+
+settings:
+  news_results_per_query: 10
+  video_results_per_query: 5
