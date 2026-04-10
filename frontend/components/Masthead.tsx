@@ -28,7 +28,7 @@ export default function Masthead({ title, weekOf, issueNumber }: MastheadProps) 
 
       {/* Masthead title */}
       <h1 className="font-masthead text-5xl md:text-7xl text-ink tracking-tight leading-none font-black">
-        The AI Prophet
+        The Context Window
       </h1>
 
       {/* Tagline */}

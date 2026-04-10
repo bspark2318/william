@@ -17,18 +17,32 @@ news_queries:
   - "robotics AI news"
   - "AI chips hardware"
   - "computer vision deep learning"
+  - "open source AI models release"
+  - "AI healthcare medical diagnosis"
+  - "AI agents autonomous systems"
+  - "AI energy climate sustainability"
+  - "generative AI music art creative"
+  - "AI education edtech"
+  - "AI cybersecurity threats defense"
+  - "multimodal AI foundation models"
 
 video_queries:
-  - "artificial intelligence explained"
-  - "AI news this week"
-  - "machine learning tutorial"
-  - "LLM technical deep dive"
-  - "AI paper explained"
-  - "PyTorch TensorFlow tutorial AI"
+  - "AI news highlights this week"
+  - "AI breakthrough announcement"
+  - "latest AI research paper breakdown"
+  - "LLM benchmark new model"
+  - "AI product launch demo"
+  - "AI industry analysis"
+  - "neural network research results"
+  - "foundation model release"
 
 settings:
   news_results_per_query: 10
-  video_results_per_query: 5
+  video_results_per_query: 8
   # Invocations per daily collect (see header for monthly estimate)
-  max_news_searches_per_collect: 8
-  max_video_searches_per_collect: 5
+  max_news_searches_per_collect: 15
+  max_video_searches_per_collect: 8
+  # Pre-filter thresholds for video candidates
+  min_video_views: 5000
+  min_video_duration_seconds: 60
+  max_video_duration_seconds: 2700

@@ -1,11 +1,15 @@
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone
 
 from googleapiclient.discovery import build
 from sqlalchemy.orm import Session
 
 from ..config import (
+    MAX_VIDEO_DURATION_SECS,
     MAX_VIDEO_SEARCHES_PER_COLLECT,
+    MIN_VIDEO_DURATION_SECS,
+    MIN_VIDEO_VIEWS,
     VIDEO_QUERIES,
     VIDEO_RESULTS_PER_QUERY,
     YOUTUBE_API_KEY,
@@ -15,6 +19,19 @@ from ..query_rotation import queries_for_collect
 
 logger = logging.getLogger(__name__)
 
+_ISO_DURATION_RE = re.compile(
+    r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?"
+)
+
+
+def _parse_duration(iso: str) -> int:
+    """Convert ISO 8601 duration (PT1H2M3S) to total seconds."""
+    m = _ISO_DURATION_RE.match(iso or "")
+    if not m:
+        return 0
+    h, mi, s = (int(g) if g else 0 for g in m.groups())
+    return h * 3600 + mi * 60 + s
+
 
 def search_videos(
     db: Session,
@@ -22,7 +39,7 @@ def search_videos(
     *,
     today: date | None = None,
 ) -> int:
-    """Search YouTube for AI videos and store new candidates. Returns count of new rows."""
+    """Search YouTube for AI videos, enrich with stats, filter, and store candidates."""
     if not YOUTUBE_API_KEY:
         logger.warning("YOUTUBE_API_KEY not set — skipping video search")
         return 0
@@ -50,9 +67,10 @@ def search_videos(
                 .list(
                     q=query,
                     type="video",
-                    order="date",
+                    order="relevance",
                     publishedAfter=published_after,
                     maxResults=VIDEO_RESULTS_PER_QUERY,
+                    videoCategoryId="28",
                     part="snippet",
                 )
                 .execute()
@@ -61,7 +79,30 @@ def search_videos(
             logger.exception("YouTube search failed for query: %s", query)
             continue
 
-        for item in response.get("items", []):
+        items = response.get("items", [])
+        if not items:
+            continue
+
+        video_ids = [item["id"]["videoId"] for item in items]
+
+        # Enrich with statistics + duration (1 quota unit)
+        try:
+            stats_resp = (
+                youtube.videos()
+                .list(id=",".join(video_ids), part="statistics,contentDetails")
+                .execute()
+            )
+        except Exception:
+            logger.exception("YouTube videos.list failed for query: %s", query)
+            stats_resp = {"items": []}
+
+        stats_by_id: dict[str, dict] = {}
+        for v in stats_resp.get("items", []):
+            views = int(v.get("statistics", {}).get("viewCount", 0))
+            duration = _parse_duration(v.get("contentDetails", {}).get("duration", ""))
+            stats_by_id[v["id"]] = {"views": views, "duration": duration}
+
+        for item in items:
             video_id = item["id"]["videoId"]
 
             existing = (
@@ -70,6 +111,15 @@ def search_videos(
                 .first()
             )
             if existing:
+                continue
+
+            st = stats_by_id.get(video_id, {})
+            views = st.get("views", 0)
+            duration = st.get("duration", 0)
+
+            if views < MIN_VIDEO_VIEWS:
+                continue
+            if duration < MIN_VIDEO_DURATION_SECS or duration > MAX_VIDEO_DURATION_SECS:
                 continue
 
             snippet = item.get("snippet", {})
@@ -82,11 +132,13 @@ def search_videos(
                 .get("url", snippet.get("thumbnails", {}).get("default", {}).get("url", "")),
                 description=snippet.get("description", "")[:500] or None,
                 published_at=snippet.get("publishedAt", "")[:10],
+                view_count=views,
+                duration_seconds=duration,
                 search_query=query,
             )
             db.add(candidate)
             added += 1
 
     db.commit()
-    logger.info("YouTube search complete — %d new candidates", added)
+    logger.info("YouTube search complete — %d new candidates (after filtering)", added)
     return added

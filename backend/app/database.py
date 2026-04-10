@@ -1,8 +1,15 @@
 import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
+
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(_BACKEND_ROOT / ".env")
+_env_specific = os.getenv("DOTENV_FILE", ".env.dev")
+load_dotenv(_BACKEND_ROOT / _env_specific, override=True)
 
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "NEWSLETTER_DATABASE_URL", "sqlite:///./newsletter.db"

@@ -1,8 +1,9 @@
 import logging
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from ..config import RETENTION_DAYS
 from ..database import SessionLocal
 from ..models import CandidateStory, CandidateVideo, FeaturedVideo, Issue, Story
 from .ranker import generate_title, rank_stories, rank_videos, tight_bullets
@@ -80,6 +81,8 @@ def publish_issue(db: Session | None = None) -> dict:
                 "description": v.description,
                 "youtube_id": v.youtube_id,
                 "thumbnail_url": v.thumbnail_url,
+                "view_count": v.view_count or 0,
+                "duration_seconds": v.duration_seconds or 0,
             }
             for v in video_candidates
         ]
@@ -164,6 +167,35 @@ def publish_issue(db: Session | None = None) -> dict:
             "title": title,
             "stories": len(top_story_ids),
             "videos": len(top_video_ids),
+        }
+    finally:
+        if own_session:
+            db.close()
+
+
+def purge_old_data(db: Session | None = None) -> dict:
+    """Delete issues and candidate rows older than RETENTION_DAYS."""
+    own_session = db is None
+    if own_session:
+        db = SessionLocal()
+
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)
+        old_issues = db.query(Issue).filter(Issue.created_at < cutoff).all()
+        for issue in old_issues:
+            db.delete(issue)
+        issues_deleted = len(old_issues)
+        stories_deleted = db.query(CandidateStory).filter(CandidateStory.collected_at < cutoff).delete()
+        videos_deleted = db.query(CandidateVideo).filter(CandidateVideo.collected_at < cutoff).delete()
+        db.commit()
+        logger.info(
+            "Purged %d issues, %d candidate stories, %d candidate videos older than %d days",
+            issues_deleted, stories_deleted, videos_deleted, RETENTION_DAYS,
+        )
+        return {
+            "issues_deleted": issues_deleted,
+            "candidate_stories_deleted": stories_deleted,
+            "candidate_videos_deleted": videos_deleted,
         }
     finally:
         if own_session:

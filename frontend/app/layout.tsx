@@ -15,7 +15,7 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "The AI Prophet — Weekly AI Newsletter",
+  title: "The Context Window — Weekly AI Newsletter",
   description: "All the artificial intelligence news that's fit to print",
 };
 

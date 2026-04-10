@@ -5,7 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from .config import COLLECT_HOUR, PUBLISH_DAY, PUBLISH_HOUR
-from .services.pipeline import collect_candidates, publish_issue
+from .services.pipeline import collect_candidates, publish_issue, purge_old_data
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +32,21 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    _scheduler.add_job(
+        purge_old_data,
+        trigger=CronTrigger(hour=COLLECT_HOUR, minute=30, timezone=pytz.utc),
+        id="daily_purge",
+        name="Purge data older than retention period",
+        replace_existing=True,
+    )
+
     _scheduler.start()
     logger.info(
-        "Scheduler started — collect daily at %02d:00 UTC, publish %s at %02d:00 UTC",
+        "Scheduler started — collect daily at %02d:00 UTC, publish %s at %02d:00 UTC, purge daily at %02d:30 UTC",
         COLLECT_HOUR,
         PUBLISH_DAY,
         PUBLISH_HOUR,
+        COLLECT_HOUR,
     )
 
 

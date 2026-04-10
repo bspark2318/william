@@ -87,6 +87,8 @@ class CandidateVideo(Base):
     thumbnail_url = Column(String, nullable=False)
     description = Column(String, nullable=True)
     published_at = Column(String, nullable=False)
+    view_count = Column(Integer, nullable=True)
+    duration_seconds = Column(Integer, nullable=True)
     importance_score = Column(Float, nullable=True)
     search_query = Column(String, nullable=False)
     collected_at = Column(DateTime, default=func.now())

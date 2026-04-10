@@ -46,7 +46,7 @@ export default function NewsletterLayout({ issue, allIssueIds }: NewsletterLayou
       <footer className="mt-12 pt-4 border-t-2 border-ink">
         <div className="max-w-md mx-auto text-center">
           <p className="font-masthead text-lg text-ink font-bold">
-            The AI Prophet
+            The Context Window
           </p>
           <p className="text-xs text-ink-light mt-1 leading-relaxed">
             Published weekly for researchers, engineers, and leaders navigating
@@ -58,7 +58,7 @@ export default function NewsletterLayout({ issue, allIssueIds }: NewsletterLayou
             </p>
           </div>
           <p className="text-xs text-ink-light mt-3">
-            &copy; {new Date().getFullYear()} The AI Prophet
+            &copy; {new Date().getFullYear()} The Context Window
           </p>
         </div>
       </footer>

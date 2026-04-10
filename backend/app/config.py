@@ -31,7 +31,11 @@ VIDEO_QUERIES: list[str] = _cfg.get("video_queries", ["AI news this week"])
 _settings = _cfg.get("settings") or {}
 
 NEWS_RESULTS_PER_QUERY: int = _settings.get("news_results_per_query", 10)
-VIDEO_RESULTS_PER_QUERY: int = _settings.get("video_results_per_query", 5)
+VIDEO_RESULTS_PER_QUERY: int = _settings.get("video_results_per_query", 8)
+
+MIN_VIDEO_VIEWS: int = _settings.get("min_video_views", 500)
+MIN_VIDEO_DURATION_SECS: int = _settings.get("min_video_duration_seconds", 60)
+MAX_VIDEO_DURATION_SECS: int = _settings.get("max_video_duration_seconds", 5400)
 
 
 def _max_searches_setting(env_key: str, yaml_key: str) -> int | None:
@@ -53,6 +57,7 @@ MAX_VIDEO_SEARCHES_PER_COLLECT: int | None = _max_searches_setting(
     "MAX_VIDEO_SEARCHES_PER_COLLECT", "max_video_searches_per_collect"
 )
 
+RETENTION_DAYS: int = int(os.getenv("RETENTION_DAYS", "30"))
 COLLECT_HOUR: int = int(os.getenv("COLLECT_HOUR", "6"))
 PUBLISH_DAY: str = os.getenv("PUBLISH_DAY", "monday")
 PUBLISH_HOUR: int = int(os.getenv("PUBLISH_HOUR", "8"))

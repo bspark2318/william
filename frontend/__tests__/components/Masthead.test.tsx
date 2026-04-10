@@ -5,7 +5,7 @@ import Masthead from "@/components/Masthead";
 describe("Masthead", () => {
   it("renders the site title", () => {
     render(<Masthead weekOf="2026-04-07" />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("The AI Prophet");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("The Context Window");
   });
 
   it("renders a formatted date", () => {

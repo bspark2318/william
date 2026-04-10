@@ -16,7 +16,7 @@ describe("NewsletterLayout", () => {
 
     render(<NewsletterLayout issue={issue} />);
 
-    expect(screen.getAllByRole("heading", { name: /The AI Prophet/i })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: /The Context Window/i })[0]).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Weekly Headline" })).toBeInTheDocument();
     expect(screen.getByText("This Week's Stories")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Alpha" })).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe("NewsletterLayout", () => {
     render(<NewsletterLayout issue={issue} />);
 
     const footer = screen.getByRole("contentinfo");
-    expect(within(footer).getByText("The AI Prophet")).toBeInTheDocument();
+    expect(within(footer).getByText("The Context Window")).toBeInTheDocument();
     expect(
       within(footer).getByText(/Published weekly for researchers/i),
     ).toBeInTheDocument();

@@ -1,11 +1,15 @@
 import json
 import logging
+import time
 
-from openai import OpenAI
+from openai import APITimeoutError, OpenAI
 
 from ..config import OPENAI_API_KEY
 
 logger = logging.getLogger(__name__)
+
+_MAX_RETRIES = 3
+_RETRY_BACKOFF = 2
 
 _STORY_SYSTEM_PROMPT = """\
 You are an expert AI-news editor. You will receive a JSON array of candidate news articles about artificial intelligence.
@@ -20,35 +24,38 @@ Return ONLY a JSON array: [{"id": <int>, "score": <float>, "reasoning": "<one se
 No markdown fences, no extra text."""
 
 _VIDEO_SYSTEM_PROMPT = """\
-You are an expert AI-content curator. You will receive a JSON array of candidate YouTube videos about artificial intelligence.
+You are an expert AI-content curator. You will receive a JSON array of candidate YouTube videos about artificial intelligence. Each entry includes view count and duration in seconds.
 
 Score each video from 1 to 10 based on:
-- Educational value for AI practitioners (weight: 3x)
-- Production quality signals (title clarity, channel reputation) (weight: 2x)
-- Timeliness / relevance to current AI trends (weight: 2x)
-- Uniqueness of perspective (weight: 1x)
+- Newsworthiness / covers a significant AI development (weight: 3x)
+- Educational value for AI practitioners (weight: 2x)
+- Production quality signals: channel reputation, view count relative to recency, title clarity (weight: 2x)
+- Uniqueness of perspective — penalise generic tutorials and clickbait (weight: 1x)
+
+Prefer videos that cover breaking news, new model releases, benchmark results, policy changes, or novel research over generic explainers.
 
 Return ONLY a JSON array: [{"id": <int>, "score": <float>, "reasoning": "<one sentence>"}]
 No markdown fences, no extra text."""
 
 _TITLE_SYSTEM_PROMPT = """\
-You are a newspaper headline writer for "The AI Prophet", an AI-focused weekly newsletter.
+You are a newspaper headline writer for "The Context Window", an AI-focused weekly newsletter.
 Given the top stories of the week, generate a single punchy issue title (3-8 words).
 Return ONLY the title string, no quotes, no extra text."""
 
 _BULLETS_SYSTEM_PROMPT = """\
-You extract the key facts from an AI news article into 2-4 scannable bullet points.
+You extract the key facts from an AI news article into 2-4 informative bullet points.
 
-Each bullet must be a discrete, standalone fact — NOT a reworded summary sentence.
-Think: what would a busy engineer screenshot and send to their group chat?
+Each bullet must be a discrete, standalone fact with enough context that a reader unfamiliar with the story understands what happened and why it matters.
 
 Format rules:
 - Return ONLY a JSON array of 2-4 strings. No markdown, no keys, no extra text.
-- Max 10 words per bullet. Fragments > full sentences. Drop articles ("the", "a") freely.
-- Lead with the specific fact, number, or name. Never start with "The company" / "Researchers" / "The model".
+- 10-20 words per bullet. Full sentences are fine; fragments are fine too.
+- Lead with the specific fact, number, or name — never start with "The company" / "Researchers" / "The model".
+- At least one bullet should convey impact or consequence ("...enabling X", "...which means Y").
+- Include concrete numbers, benchmarks, or comparisons when they appear in the source.
 - No opinions, no "significant", no "groundbreaking", no filler adjectives.
 
-Good: ["GPT-5 natively processes text + image + audio", "3× lift on GPQA science benchmark", "Code-gen Elo up 200 pts vs GPT-4o"]
+Good: ["GPT-5 processes text, image, and audio natively — first unified multimodal model from OpenAI", "Scores 3× higher on GPQA science benchmark, closing the gap with domain experts", "Code-gen Elo jumps 200 pts over GPT-4o, reaching top-5 on LiveCodeBench"]
 Bad: ["OpenAI has released a new model that can handle multiple types of input simultaneously"]"""
 
 
@@ -67,16 +74,25 @@ def _fallback_bullets(raw: str) -> list[str]:
 
 
 def _call_openai(system: str, user: str) -> str:
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.3,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-    )
-    return response.choices[0].message.content.strip()
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
+    for attempt in range(_MAX_RETRIES):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.3,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
+            return response.choices[0].message.content.strip()
+        except APITimeoutError:
+            if attempt == _MAX_RETRIES - 1:
+                raise
+            wait = _RETRY_BACKOFF ** attempt
+            logger.warning("OpenAI timeout (attempt %d/%d), retrying in %ds", attempt + 1, _MAX_RETRIES, wait)
+            time.sleep(wait)
+    raise RuntimeError("unreachable")
 
 
 def rank_stories(candidates: list[dict]) -> list[dict]:
@@ -110,7 +126,17 @@ def rank_videos(candidates: list[dict]) -> list[dict]:
         return []
 
     payload = json.dumps(
-        [{"id": c["id"], "title": c["title"], "channel": c["channel"], "description": (c.get("description") or "")[:200]} for c in candidates]
+        [
+            {
+                "id": c["id"],
+                "title": c["title"],
+                "channel": c["channel"],
+                "description": (c.get("description") or "")[:300],
+                "view_count": c.get("view_count", 0),
+                "duration_seconds": c.get("duration_seconds", 0),
+            }
+            for c in candidates
+        ]
     )
     raw = _call_openai(_VIDEO_SYSTEM_PROMPT, payload)
 
