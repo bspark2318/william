@@ -1,4 +1,4 @@
-import { Story, FeaturedVideo } from "@/lib/types";
+import { Story, FeaturedVideo, Issue } from "@/lib/types";
 
 export function makeStory(overrides: Partial<Story> = {}): Story {
   return {
@@ -20,6 +20,17 @@ export function makeVideo(overrides: Partial<FeaturedVideo> = {}): FeaturedVideo
     video_url: "https://youtube.com/watch?v=abc",
     thumbnail_url: "https://img.youtube.com/vi/abc/0.jpg",
     description: "A test video description.",
+    ...overrides,
+  };
+}
+
+export function makeIssue(overrides: Partial<Issue> = {}): Issue {
+  return {
+    id: 1,
+    week_of: "2026-04-07",
+    title: "Test Issue Title",
+    stories: [makeStory()],
+    featured_video: null,
     ...overrides,
   };
 }
