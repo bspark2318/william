@@ -14,7 +14,7 @@ export default function NewsletterLayout({ issue, allIssueIds }: NewsletterLayou
       <Masthead
         weekOf={issue.week_of}
         title={issue.title}
-        issueNumber={issue.id}
+        issueNumber={issue.edition}
       />
 
       {/* Two-column newspaper layout */}

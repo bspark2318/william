@@ -8,3 +8,5 @@ openai
 apscheduler
 pyyaml
 python-dotenv
+pytest
+httpx

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import CandidateStory, CandidateVideo, FeaturedVideo, Issue, Story
-from .ranker import generate_title, rank_stories, rank_videos
+from .ranker import generate_title, rank_stories, rank_videos, tight_bullets
 from .tavily_search import search_news
 from .youtube_search import search_videos
 
@@ -104,10 +104,12 @@ def publish_issue(db: Session | None = None) -> dict:
             cand = db.query(CandidateStory).get(sid)
             if not cand:
                 continue
+            bullets = tight_bullets(cand.title, cand.summary)
             story = Story(
                 issue_id=issue.id,
                 title=cand.title,
-                summary=cand.summary,
+                summary=" ".join(bullets) if bullets else cand.summary,
+                bullet_points=bullets or None,
                 source=cand.source,
                 url=cand.url,
                 image_url=cand.image_url,

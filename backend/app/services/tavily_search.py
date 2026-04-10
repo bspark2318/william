@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime
+from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
@@ -8,6 +10,29 @@ from ..config import NEWS_QUERIES, NEWS_RESULTS_PER_QUERY, TAVILY_API_KEY
 from ..models import CandidateStory
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_published_date(raw: str | None) -> str:
+    """Store YYYY-MM-DD. Tavily may return ISO or RFC 2822; naive [:10] breaks on the latter."""
+    if not raw or not (raw := raw.strip()):
+        return ""
+    if (
+        len(raw) >= 10
+        and raw[0:4].isdigit()
+        and raw[4] == "-"
+        and raw[5:7].isdigit()
+        and raw[7] == "-"
+        and raw[8:10].isdigit()
+    ):
+        return raw[:10]
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).date().isoformat()
+    except ValueError:
+        pass
+    try:
+        return parsedate_to_datetime(raw).date().isoformat()
+    except (TypeError, ValueError):
+        return ""
 
 
 def _extract_source(url: str) -> str:
@@ -25,6 +50,7 @@ def search_news(db: Session, queries: list[str] | None = None) -> int:
 
     client = TavilyClient(api_key=TAVILY_API_KEY)
     queries = queries or NEWS_QUERIES
+    seen_urls: set[str] = set()
     added = 0
 
     for query in queries:
@@ -42,8 +68,9 @@ def search_news(db: Session, queries: list[str] | None = None) -> int:
 
         for item in results.get("results", []):
             url = item.get("url", "")
-            if not url:
+            if not url or url in seen_urls:
                 continue
+            seen_urls.add(url)
 
             existing = db.query(CandidateStory).filter(CandidateStory.url == url).first()
             if existing:
@@ -55,7 +82,7 @@ def search_news(db: Session, queries: list[str] | None = None) -> int:
                 source=_extract_source(url),
                 url=url,
                 image_url=None,
-                date=item.get("published_date", "")[:10] if item.get("published_date") else "",
+                date=_normalize_published_date(item.get("published_date")),
                 tavily_score=item.get("score"),
                 search_query=query,
             )

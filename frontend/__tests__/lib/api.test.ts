@@ -12,7 +12,7 @@ function jsonResponse(data: unknown, status = 200) {
 
 describe("getIssues", () => {
   it("fetches the issues list from the API", async () => {
-    const issues = [{ id: 1, week_of: "2026-04-07", title: "Issue 1" }];
+    const issues = [{ id: 1, week_of: "2026-04-07", title: "Issue 1", edition: 1 }];
     mockFetch.mockResolvedValueOnce(jsonResponse(issues));
 
     const result = await getIssues();
@@ -31,7 +31,15 @@ describe("getIssues", () => {
 
 describe("getIssue", () => {
   it("fetches a single issue by id", async () => {
-    const issue = { id: 3, week_of: "2026-04-07", title: "Issue 3", stories: [], featured_video: null };
+    const issue = {
+      id: 3,
+      week_of: "2026-04-07",
+      title: "Issue 3",
+      edition: 1,
+      stories: [],
+      featured_video: null,
+      featured_videos: [],
+    };
     mockFetch.mockResolvedValueOnce(jsonResponse(issue));
 
     const result = await getIssue(3);
@@ -51,10 +59,10 @@ describe("getIssue", () => {
 describe("getLatestIssue", () => {
   it("fetches the first issue from the list", async () => {
     const issues = [
-      { id: 5, week_of: "2026-04-07", title: "Latest" },
-      { id: 4, week_of: "2026-03-31", title: "Older" },
+      { id: 5, week_of: "2026-04-07", title: "Latest", edition: 2 },
+      { id: 4, week_of: "2026-03-31", title: "Older", edition: 1 },
     ];
-    const fullIssue = { ...issues[0], stories: [], featured_video: null };
+    const fullIssue = { ...issues[0], stories: [], featured_video: null, featured_videos: [] };
 
     mockFetch
       .mockResolvedValueOnce(jsonResponse(issues))

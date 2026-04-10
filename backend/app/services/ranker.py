@@ -36,6 +36,28 @@ You are a newspaper headline writer for "The AI Prophet", an AI-focused weekly n
 Given the top stories of the week, generate a single punchy issue title (3-8 words).
 Return ONLY the title string, no quotes, no extra text."""
 
+_BULLETS_SYSTEM_PROMPT = """\
+You compress AI news blurbs into scannable newsletter bullets.
+
+Rules:
+- Return ONLY a JSON array of 3 or 4 strings. No markdown, no keys, no extra text.
+- Each string is ONE bullet: short, direct, no fluff (max 14 words). Start with a fact, not "This article" or "The piece".
+- Use fragments allowed. No duplicate ideas."""
+
+
+def _fallback_bullets(raw: str) -> list[str]:
+    text = (raw or "").strip()
+    if not text:
+        return []
+    parts = []
+    for chunk in text.replace("?", ".").replace("!", ".").split("."):
+        c = chunk.strip()
+        if len(c) > 8:
+            parts.append(c[:120] + ("…" if len(c) > 120 else ""))
+        if len(parts) >= 4:
+            break
+    return parts[:4] if parts else [text[:200]]
+
 
 def _call_openai(system: str, user: str) -> str:
     client = OpenAI(api_key=OPENAI_API_KEY)
@@ -90,6 +112,27 @@ def rank_videos(candidates: list[dict]) -> list[dict]:
     except json.JSONDecodeError:
         logger.error("Failed to parse video ranker response: %s", raw[:500])
         return [{"id": c["id"], "score": 5.0, "reasoning": "parse error"} for c in candidates]
+
+
+def tight_bullets(title: str, raw_content: str) -> list[str]:
+    """Turn Tavily-style prose into 3–4 terse bullet strings for the issue."""
+    body = (raw_content or "").strip()[:4000]
+    if not body and not (title or "").strip():
+        return []
+
+    if not OPENAI_API_KEY:
+        return _fallback_bullets(body or title)
+
+    user = f"Title: {title}\n\nBody:\n{body}"
+    raw = _call_openai(_BULLETS_SYSTEM_PROMPT, user)
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list) and all(isinstance(x, str) and x.strip() for x in parsed):
+            out = [x.strip() for x in parsed[:4]]
+            return out if len(out) >= 2 else _fallback_bullets(body)
+    except json.JSONDecodeError:
+        logger.warning("tight_bullets JSON parse failed: %s", raw[:200])
+    return _fallback_bullets(body)
 
 
 def generate_title(top_stories: list[dict]) -> str:

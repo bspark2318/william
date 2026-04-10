@@ -4,17 +4,29 @@ import StoryCard from "@/components/StoryCard";
 import { makeStory } from "../helpers";
 
 describe("StoryCard", () => {
-  it("renders title, summary, and source", () => {
+  it("renders title, bullets, and source", () => {
     const story = makeStory({
       title: "GPT-5 Released",
-      summary: "OpenAI drops a new model.",
+      summary: "ignored when bullets set",
+      bullet_points: ["Ships multimodal.", "Higher math scores.", "Same API pricing."],
       source: "The Verge",
     });
     render(<StoryCard story={story} />);
 
     expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("GPT-5 Released");
-    expect(screen.getByText("OpenAI drops a new model.")).toBeInTheDocument();
+    expect(screen.getByText("Ships multimodal.")).toBeInTheDocument();
+    expect(screen.getByText("Higher math scores.")).toBeInTheDocument();
+    expect(screen.queryByText("ignored when bullets set")).not.toBeInTheDocument();
     expect(screen.getByText("The Verge")).toBeInTheDocument();
+  });
+
+  it("falls back to summary as a single bullet when bullet_points absent", () => {
+    const story = makeStory({
+      summary: "One line only.",
+      bullet_points: undefined,
+    });
+    render(<StoryCard story={story} />);
+    expect(screen.getByText("One line only.")).toBeInTheDocument();
   });
 
   it("links to the story URL in a new tab", () => {

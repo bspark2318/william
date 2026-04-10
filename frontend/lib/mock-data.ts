@@ -1,14 +1,15 @@
 import { Issue, IssueListItem } from "./types";
 
 export const MOCK_ISSUES: IssueListItem[] = [
-  { id: 1, week_of: "2026-04-07", title: "The Rise of Reasoning Models" },
-  { id: 2, week_of: "2026-03-31", title: "Open Source Strikes Back" },
+  { id: 1, week_of: "2026-04-07", title: "The Rise of Reasoning Models", edition: 2 },
+  { id: 2, week_of: "2026-03-31", title: "Open Source Strikes Back", edition: 1 },
 ];
 
 export const MOCK_ISSUE: Issue = {
   id: 1,
   week_of: "2026-04-07",
   title: "The Rise of Reasoning Models",
+  edition: 2,
   featured_video: null,
   featured_videos: [
     {
@@ -41,7 +42,12 @@ export const MOCK_ISSUE: Issue = {
       id: 1,
       title: "OpenAI Unveils GPT-5 with Native Multimodal Reasoning",
       summary:
-        "The latest model from OpenAI demonstrates unprecedented ability to reason across text, images, and audio simultaneously. Researchers report significant improvements in scientific problem-solving and code generation tasks.",
+        "Native multimodal reasoning across text, images, audio. Stronger scientific and coding benchmarks vs prior GPT.",
+      bullet_points: [
+        "Multimodal reasoning: text, images, audio in one stack.",
+        "Notable lift on scientific problem-solving benchmarks.",
+        "Code generation scores up vs GPT-4 class models.",
+      ],
       source: "The Verge",
       url: "https://theverge.com",
       image_url: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=300&q=80",
@@ -53,7 +59,12 @@ export const MOCK_ISSUE: Issue = {
       id: 2,
       title: "Google DeepMind Achieves Breakthrough in Protein Folding Speed",
       summary:
-        "AlphaFold 4 can now predict protein structures in milliseconds rather than minutes, opening the door to real-time drug discovery simulations. The pharmaceutical industry is already racing to integrate the technology.",
+        "AlphaFold 4: millisecond structure prediction. Pharma racing on real-time discovery sims.",
+      bullet_points: [
+        "Structure predictions in milliseconds, not minutes.",
+        "Enables real-time drug-discovery simulation loops.",
+        "Heavy pharma interest in integration timelines.",
+      ],
       source: "Nature",
       url: "https://nature.com",
       date: "2026-04-06",
@@ -64,7 +75,12 @@ export const MOCK_ISSUE: Issue = {
       id: 3,
       title: "EU Passes Landmark AI Liability Directive",
       summary:
-        "Companies deploying AI systems in the European Union will now face strict liability for damages caused by their models. The directive establishes a framework for compensation and mandates transparency in high-risk applications.",
+        "EU: deployers liable for AI harm. Compensation framework + high-risk transparency rules.",
+      bullet_points: [
+        "Strict liability for damages from deployed AI systems.",
+        "Compensation framework spelled out for victims.",
+        "High-risk apps face tighter transparency mandates.",
+      ],
       source: "Reuters",
       url: "https://reuters.com",
       image_url: "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=300&q=80",
@@ -76,7 +92,12 @@ export const MOCK_ISSUE: Issue = {
       id: 4,
       title: "Meta Releases Llama 5 Under Apache 2.0 License",
       summary:
-        "In a bold move for open source AI, Meta has released its most capable model yet with a fully permissive license. Early benchmarks show it competing with proprietary models on reasoning and code tasks.",
+        "Llama 5 Apache 2.0 — Meta’s strongest open drop yet. Benchmarks near proprietary on reasoning/code.",
+      bullet_points: [
+        "Apache 2.0; Meta’s most capable open release so far.",
+        "Reasoning benchmarks competitive with closed models.",
+        "Code tasks within striking distance of proprietary stacks.",
+      ],
       source: "TechCrunch",
       url: "https://techcrunch.com",
       date: "2026-04-04",

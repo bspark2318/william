@@ -36,6 +36,7 @@ class Story(Base):
     issue_id = Column(Integer, ForeignKey("issues.id"), nullable=False)
     title = Column(String, nullable=False)
     summary = Column(Text, nullable=False)
+    bullet_points = Column(JSON, nullable=True)
     source = Column(String, nullable=False)
     url = Column(String, nullable=False)
     image_url = Column(String, nullable=True)

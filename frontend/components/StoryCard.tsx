@@ -5,6 +5,13 @@ interface StoryCardProps {
 }
 
 export default function StoryCard({ story }: StoryCardProps) {
+  const bullets =
+    story.bullet_points && story.bullet_points.length > 0
+      ? story.bullet_points
+      : story.summary
+        ? [story.summary]
+        : [];
+
   const formattedDate = new Date(story.date + "T00:00:00").toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -46,10 +53,14 @@ export default function StoryCard({ story }: StoryCardProps) {
               {story.title}
             </h3>
 
-            {/* Summary */}
-            <p className="mt-1.5 text-sm text-ink-light leading-relaxed line-clamp-3">
-              {story.summary}
-            </p>
+            {/* Bullets */}
+            {bullets.length > 0 && (
+              <ul className="mt-1.5 text-sm text-ink-light leading-snug list-disc list-inside space-y-0.5 marker:text-accent">
+                {bullets.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            )}
 
             {/* Tags */}
             {story.tags && story.tags.length > 0 && (

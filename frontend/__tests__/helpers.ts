@@ -29,6 +29,7 @@ export function makeIssue(overrides: Partial<Issue> = {}): Issue {
     id: 1,
     week_of: "2026-04-07",
     title: "Test Issue Title",
+    edition: 1,
     stories: [makeStory()],
     featured_video: null,
     ...overrides,

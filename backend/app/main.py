@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import Base, engine
+from .database import Base, engine, ensure_sqlite_columns
 from .routers import issues
 from .routers.admin import router as admin_router
 from .scheduler import start_scheduler, stop_scheduler
@@ -12,6 +12,7 @@ from .scheduler import start_scheduler, stop_scheduler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_sqlite_columns()
     start_scheduler()
     yield
     stop_scheduler()
