@@ -22,7 +22,10 @@ def _bootstrap_if_empty() -> None:
         if db.query(Issue).first() is not None:
             return
         logger.info("No issues found — running startup collect + publish")
-        collect_candidates(db)
+        try:
+            collect_candidates(db)
+        except Exception:
+            logger.exception("Startup collect failed — attempting publish with any saved candidates")
         publish_issue(db)
     except Exception:
         logger.exception("Startup bootstrap failed")

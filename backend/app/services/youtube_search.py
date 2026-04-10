@@ -59,6 +59,7 @@ def search_videos(
     )
     published_after = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     added = 0
+    seen_ids: set[str] = set()
 
     for query in queries:
         try:
@@ -85,7 +86,6 @@ def search_videos(
 
         video_ids = [item["id"]["videoId"] for item in items]
 
-        # Enrich with statistics + duration (1 quota unit)
         try:
             stats_resp = (
                 youtube.videos()
@@ -104,6 +104,10 @@ def search_videos(
 
         for item in items:
             video_id = item["id"]["videoId"]
+
+            if video_id in seen_ids:
+                continue
+            seen_ids.add(video_id)
 
             existing = (
                 db.query(CandidateVideo)
