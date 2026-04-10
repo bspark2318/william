@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -37,7 +38,7 @@ def _bootstrap_if_empty() -> None:
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_sqlite_columns()
-    _bootstrap_if_empty()
+    threading.Thread(target=_bootstrap_if_empty, daemon=True).start()
     start_scheduler()
     yield
     stop_scheduler()

@@ -74,7 +74,7 @@ def _fallback_bullets(raw: str) -> list[str]:
 
 
 def _call_openai(system: str, user: str) -> str:
-    client = OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=120.0)
     for attempt in range(_MAX_RETRIES):
         try:
             response = client.chat.completions.create(
