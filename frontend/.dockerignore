@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.git/
+.env*
+__tests__/
+*.md
+.DS_Store
+eslint.config.mjs
+vitest.config.ts
+vitest.setup.ts

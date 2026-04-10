@@ -6,6 +6,7 @@ tavily-python
 google-api-python-client
 openai
 apscheduler
+pytz
 pyyaml
 python-dotenv
 pytest

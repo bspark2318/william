@@ -93,7 +93,7 @@ def publish_issue(db: Session | None = None) -> dict:
                 cand.importance_score = sv.get("score", 0)
 
         top_stories_data = [s for s in story_dicts if s["id"] in top_story_ids]
-        title = generate_title(top_stories_data)
+        title = generate_title(top_stories_data).strip('"').strip("'")
         week_of = date.today().isoformat()
 
         issue = Issue(week_of=week_of, title=title)

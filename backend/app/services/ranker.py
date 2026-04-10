@@ -37,12 +37,19 @@ Given the top stories of the week, generate a single punchy issue title (3-8 wor
 Return ONLY the title string, no quotes, no extra text."""
 
 _BULLETS_SYSTEM_PROMPT = """\
-You compress AI news blurbs into scannable newsletter bullets.
+You extract the key facts from an AI news article into 2-4 scannable bullet points.
 
-Rules:
-- Return ONLY a JSON array of 3 or 4 strings. No markdown, no keys, no extra text.
-- Each string is ONE bullet: short, direct, no fluff (max 14 words). Start with a fact, not "This article" or "The piece".
-- Use fragments allowed. No duplicate ideas."""
+Each bullet must be a discrete, standalone fact — NOT a reworded summary sentence.
+Think: what would a busy engineer screenshot and send to their group chat?
+
+Format rules:
+- Return ONLY a JSON array of 2-4 strings. No markdown, no keys, no extra text.
+- Max 10 words per bullet. Fragments > full sentences. Drop articles ("the", "a") freely.
+- Lead with the specific fact, number, or name. Never start with "The company" / "Researchers" / "The model".
+- No opinions, no "significant", no "groundbreaking", no filler adjectives.
+
+Good: ["GPT-5 natively processes text + image + audio", "3× lift on GPQA science benchmark", "Code-gen Elo up 200 pts vs GPT-4o"]
+Bad: ["OpenAI has released a new model that can handle multiple types of input simultaneously"]"""
 
 
 def _fallback_bullets(raw: str) -> list[str]:

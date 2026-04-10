@@ -1,0 +1,41 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  william-backend:
+    image: bspark2318/william-backend:arm64
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: william-backend
+    restart: unless-stopped
+    env_file: .env.prod
+    volumes:
+      - ./data:/app/data
+    logging: *default-logging
+
+  william-frontend:
+    image: bspark2318/william-frontend:arm64
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: william-frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=http://william-backend:8000
+    depends_on:
+      - william-backend
+    logging: *default-logging
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-william
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file: .env.prod
+    depends_on:
+      - william-frontend
+    logging: *default-logging

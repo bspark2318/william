@@ -28,8 +28,30 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 NEWS_QUERIES: list[str] = _cfg.get("news_queries", ["artificial intelligence news"])
 VIDEO_QUERIES: list[str] = _cfg.get("video_queries", ["AI news this week"])
 
-NEWS_RESULTS_PER_QUERY: int = _cfg.get("settings", {}).get("news_results_per_query", 10)
-VIDEO_RESULTS_PER_QUERY: int = _cfg.get("settings", {}).get("video_results_per_query", 5)
+_settings = _cfg.get("settings") or {}
+
+NEWS_RESULTS_PER_QUERY: int = _settings.get("news_results_per_query", 10)
+VIDEO_RESULTS_PER_QUERY: int = _settings.get("video_results_per_query", 5)
+
+
+def _max_searches_setting(env_key: str, yaml_key: str) -> int | None:
+    raw = os.getenv(env_key)
+    if raw is not None and raw.strip() != "":
+        return int(raw)
+    v = _settings.get(yaml_key)
+    if v is None:
+        return None
+    return int(v)
+
+
+# Cap Tavily / YouTube search invocations per daily collect (rotation over full query lists).
+# None = run every query in YAML each collect. Env overrides YAML (including 0).
+MAX_NEWS_SEARCHES_PER_COLLECT: int | None = _max_searches_setting(
+    "MAX_NEWS_SEARCHES_PER_COLLECT", "max_news_searches_per_collect"
+)
+MAX_VIDEO_SEARCHES_PER_COLLECT: int | None = _max_searches_setting(
+    "MAX_VIDEO_SEARCHES_PER_COLLECT", "max_video_searches_per_collect"
+)
 
 COLLECT_HOUR: int = int(os.getenv("COLLECT_HOUR", "6"))
 PUBLISH_DAY: str = os.getenv("PUBLISH_DAY", "monday")

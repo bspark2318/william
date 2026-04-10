@@ -1,13 +1,19 @@
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 from tavily import TavilyClient
 
-from ..config import NEWS_QUERIES, NEWS_RESULTS_PER_QUERY, TAVILY_API_KEY
+from ..config import (
+    MAX_NEWS_SEARCHES_PER_COLLECT,
+    NEWS_QUERIES,
+    NEWS_RESULTS_PER_QUERY,
+    TAVILY_API_KEY,
+)
 from ..models import CandidateStory
+from ..query_rotation import queries_for_collect
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +48,30 @@ def _extract_source(url: str) -> str:
     return host.split(".")[0].title()
 
 
-def search_news(db: Session, queries: list[str] | None = None) -> int:
+def search_news(
+    db: Session,
+    queries: list[str] | None = None,
+    *,
+    today: date | None = None,
+) -> int:
     """Search Tavily for AI news and store new candidates. Returns count of new rows."""
     if not TAVILY_API_KEY:
         logger.warning("TAVILY_API_KEY not set — skipping news search")
         return 0
 
     client = TavilyClient(api_key=TAVILY_API_KEY)
-    queries = queries or NEWS_QUERIES
+    pool = queries or NEWS_QUERIES
+    day = today or date.today()
+    queries = queries_for_collect(pool, MAX_NEWS_SEARCHES_PER_COLLECT, day)
+    if not queries:
+        logger.warning("No news queries selected (empty pool or max_news_searches_per_collect=0)")
+        return 0
+    logger.info(
+        "Tavily: %d search call(s) today (pool %d, cap %s)",
+        len(queries),
+        len(pool),
+        MAX_NEWS_SEARCHES_PER_COLLECT if MAX_NEWS_SEARCHES_PER_COLLECT is not None else "none",
+    )
     seen_urls: set[str] = set()
     added = 0
 

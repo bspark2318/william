@@ -1,15 +1,34 @@
+# Search pools are larger than daily caps: each collect rotates through the pool so
+# coverage spreads across the week without blowing API budgets.
+#
+# Rough monthly search calls (1 collect/day × ~30):
+#   Tavily:  max_news_searches_per_collect × 30
+#   YouTube: max_video_searches_per_collect × 30
+# (Plus weekly OpenAI ranking — separate from these caps.)
+
 news_queries:
   - "artificial intelligence breakthroughs"
   - "large language models"
   - "AI regulation policy"
   - "machine learning research"
   - "AI startups funding"
+  - "generative AI enterprise"
+  - "AI safety alignment"
+  - "robotics AI news"
+  - "AI chips hardware"
+  - "computer vision deep learning"
 
 video_queries:
   - "artificial intelligence explained"
   - "AI news this week"
   - "machine learning tutorial"
+  - "LLM technical deep dive"
+  - "AI paper explained"
+  - "PyTorch TensorFlow tutorial AI"
 
 settings:
   news_results_per_query: 10
   video_results_per_query: 5
+  # Invocations per daily collect (see header for monthly estimate)
+  max_news_searches_per_collect: 8
+  max_video_searches_per_collect: 5
