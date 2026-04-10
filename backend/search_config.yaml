@@ -1,30 +1,16 @@
-# Search pools are larger than daily caps: each collect rotates through the pool so
-# coverage spreads across the week without blowing API budgets.
-#
-# Rough monthly search calls (1 collect/day × ~30):
-#   Tavily:  max_news_searches_per_collect × 30
-#   YouTube: max_video_searches_per_collect × 30
-# (Plus weekly OpenAI ranking — separate from these caps.)
-
 news_queries:
-  - "artificial intelligence breakthroughs"
-  - "large language models"
-  - "AI regulation policy"
-  - "machine learning research"
-  - "AI startups funding"
-  - "generative AI enterprise"
-  - "AI safety alignment"
-  - "robotics AI news"
-  - "AI chips hardware"
-  - "computer vision deep learning"
-  - "open source AI models release"
-  - "AI healthcare medical diagnosis"
-  - "AI agents autonomous systems"
-  - "AI energy climate sustainability"
-  - "generative AI music art creative"
-  - "AI education edtech"
-  - "AI cybersecurity threats defense"
-  - "multimodal AI foundation models"
+  - "new AI model release announcement"
+  - "AI benchmark results SOTA"
+  - "OpenAI Anthropic Google DeepMind announcement"
+  - "AI regulation bill legislation passed"
+  - "AI startup funding Series"
+  - "open source LLM release weights"
+  - "AI safety research paper findings"
+  - "robotics foundation model demo"
+  - "AI chip GPU TPU production"
+  - "multimodal model vision language"
+  - "AI agent framework tool release"
+  - "AI protein drug discovery results"
 
 video_queries:
   - "AI news highlights this week"
@@ -33,16 +19,13 @@ video_queries:
   - "LLM benchmark new model"
   - "AI product launch demo"
   - "AI industry analysis"
-  - "neural network research results"
   - "foundation model release"
 
 settings:
   news_results_per_query: 10
   video_results_per_query: 8
-  # Invocations per daily collect (see header for monthly estimate)
-  max_news_searches_per_collect: 15
-  max_video_searches_per_collect: 8
-  # Pre-filter thresholds for video candidates
+  max_news_searches_per_collect: 12
+  max_video_searches_per_collect: 7
   min_video_views: 5000
   min_video_duration_seconds: 60
   max_video_duration_seconds: 2700

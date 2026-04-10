@@ -3,41 +3,105 @@ import json
 from app.services import ranker
 
 
-def test_rank_stories_empty_no_key(monkeypatch):
+# ---------------------------------------------------------------------------
+# quick_rank_stories
+# ---------------------------------------------------------------------------
+
+def test_quick_rank_stories_empty_no_key(monkeypatch):
     monkeypatch.setattr(ranker, "OPENAI_API_KEY", "")
-    assert ranker.rank_stories([]) == []
+    assert ranker.quick_rank_stories([]) == []
 
 
-def test_rank_stories_fallback_without_api_key(monkeypatch):
+def test_quick_rank_stories_fallback_without_api_key(monkeypatch):
     monkeypatch.setattr(ranker, "OPENAI_API_KEY", "")
-    out = ranker.rank_stories(
-        [{"id": 1, "title": "a", "summary": "b", "source": "c", "tavily_score": 7.5}]
+    out = ranker.quick_rank_stories(
+        [{"id": 1, "title": "a", "source": "c", "tavily_score": 0.75}]
     )
-    assert out == [{"id": 1, "score": 7.5, "reasoning": "no LLM"}]
+    assert out == [{"id": 1, "score": 7.5}]
 
 
-def test_rank_videos_fallback_without_api_key(monkeypatch):
+def test_quick_rank_stories_success(monkeypatch):
+    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "fake")
+
+    def fake_openai(system, user):
+        return json.dumps([{"id": 1, "score": 9.0}])
+
+    monkeypatch.setattr(ranker, "_call_openai", fake_openai)
+    out = ranker.quick_rank_stories([{"id": 1, "title": "a", "source": "c"}])
+    assert out == [{"id": 1, "score": 9.0}]
+
+
+def test_quick_rank_stories_parse_error(monkeypatch):
+    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "fake")
+    monkeypatch.setattr(ranker, "_call_openai", lambda s, u: "not json")
+    out = ranker.quick_rank_stories([{"id": 1, "title": "a", "source": "c"}])
+    assert out == [{"id": 1, "score": 5.0}]
+
+
+# ---------------------------------------------------------------------------
+# quick_rank_videos
+# ---------------------------------------------------------------------------
+
+def test_quick_rank_videos_fallback_without_api_key(monkeypatch):
     monkeypatch.setattr(ranker, "OPENAI_API_KEY", "")
-    out = ranker.rank_videos([{"id": 2, "title": "v", "channel": "ch", "description": "d"}])
-    assert out == [{"id": 2, "score": 0, "reasoning": "no LLM"}]
+    out = ranker.quick_rank_videos([{"id": 2, "title": "v", "channel": "ch"}])
+    assert out == [{"id": 2, "score": 0}]
 
+
+def test_quick_rank_videos_success(monkeypatch):
+    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "fake")
+    monkeypatch.setattr(ranker, "_call_openai", lambda s, u: json.dumps([{"id": 2, "score": 8.0}]))
+    out = ranker.quick_rank_videos([{"id": 2, "title": "v", "channel": "ch"}])
+    assert out == [{"id": 2, "score": 8.0}]
+
+
+# ---------------------------------------------------------------------------
+# comparative_select_stories
+# ---------------------------------------------------------------------------
+
+def test_comparative_select_stories_fallback(monkeypatch):
+    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "")
+    cands = [
+        {"id": 1, "title": "a", "summary": "x", "source": "s", "importance_score": 9},
+        {"id": 2, "title": "b", "summary": "y", "source": "s", "importance_score": 7},
+    ]
+    out = ranker.comparative_select_stories(cands)
+    assert out[0]["id"] == 1
+    assert out[0]["rank"] == 1
+
+
+def test_comparative_select_stories_success(monkeypatch):
+    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "fake")
+    monkeypatch.setattr(
+        ranker, "_call_openai",
+        lambda s, u: json.dumps([{"id": 1, "rank": 1, "topic": "models"}]),
+    )
+    out = ranker.comparative_select_stories(
+        [{"id": 1, "title": "a", "summary": "x", "source": "s"}]
+    )
+    assert out == [{"id": 1, "rank": 1, "topic": "models"}]
+
+
+# ---------------------------------------------------------------------------
+# comparative_select_videos
+# ---------------------------------------------------------------------------
+
+def test_comparative_select_videos_fallback(monkeypatch):
+    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "")
+    cands = [
+        {"id": 1, "title": "v", "channel": "c", "description": "d", "importance_score": 8},
+    ]
+    out = ranker.comparative_select_videos(cands)
+    assert out[0]["id"] == 1
+
+
+# ---------------------------------------------------------------------------
+# tight_bullets + generate_title (unchanged)
+# ---------------------------------------------------------------------------
 
 def test_generate_title_fallback_without_api_key(monkeypatch):
     monkeypatch.setattr(ranker, "OPENAI_API_KEY", "")
     assert ranker.generate_title([{"title": "Any"}]) == "This Week in AI"
-
-
-def test_rank_stories_parse_error_uses_default(monkeypatch):
-    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "fake")
-
-    def bad_openai(system, user):
-        return "not json"
-
-    monkeypatch.setattr(ranker, "_call_openai", bad_openai)
-    out = ranker.rank_stories(
-        [{"id": 1, "title": "a", "summary": "b" * 400, "source": "c"}]
-    )
-    assert out == [{"id": 1, "score": 5.0, "reasoning": "parse error"}]
 
 
 def test_tight_bullets_fallback_without_api_key(monkeypatch):
@@ -53,22 +117,8 @@ def test_tight_bullets_fallback_without_api_key(monkeypatch):
 
 def test_tight_bullets_parses_llm_json(monkeypatch):
     monkeypatch.setattr(ranker, "OPENAI_API_KEY", "fake")
-
-    def fake_openai(system, user):
-        return json.dumps(["Alpha", "Beta", "Gamma"])
-
-    monkeypatch.setattr(ranker, "_call_openai", fake_openai)
-    assert ranker.tight_bullets("T", "body") == ["Alpha", "Beta", "Gamma"]
-
-
-def test_rank_stories_success(monkeypatch):
-    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "fake")
-
-    def fake_openai(system, user):
-        return json.dumps([{"id": 1, "score": 9.0, "reasoning": "ok"}])
-
-    monkeypatch.setattr(ranker, "_call_openai", fake_openai)
-    out = ranker.rank_stories(
-        [{"id": 1, "title": "a", "summary": "short", "source": "c"}]
+    monkeypatch.setattr(
+        ranker, "_call_openai",
+        lambda s, u: json.dumps(["Alpha", "Beta", "Gamma"]),
     )
-    assert out == [{"id": 1, "score": 9.0, "reasoning": "ok"}]
+    assert ranker.tight_bullets("T", "body") == ["Alpha", "Beta", "Gamma"]
