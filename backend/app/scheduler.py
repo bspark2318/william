@@ -4,7 +4,7 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from .config import COLLECT_HOUR, PUBLISH_HOUR
+from .config import COLLECT_HOUR, PUBLISH_DAY, PUBLISH_HOUR
 from .services.pipeline import collect_candidates, publish_issue, purge_old_data
 
 logger = logging.getLogger(__name__)
@@ -26,9 +26,9 @@ def start_scheduler():
 
     _scheduler.add_job(
         publish_issue,
-        trigger=CronTrigger(hour=PUBLISH_HOUR, timezone=pytz.utc),
-        id="daily_publish",
-        name="Daily issue publication",
+        trigger=CronTrigger(day_of_week=PUBLISH_DAY[:3].lower(), hour=PUBLISH_HOUR, timezone=pytz.utc),
+        id="weekly_publish",
+        name="Weekly issue publication",
         replace_existing=True,
     )
 
@@ -42,8 +42,9 @@ def start_scheduler():
 
     _scheduler.start()
     logger.info(
-        "Scheduler started — collect daily at %02d:00 UTC, publish daily at %02d:00 UTC, purge daily at %02d:30 UTC",
+        "Scheduler started — collect daily at %02d:00 UTC, publish %s at %02d:00 UTC, purge daily at %02d:30 UTC",
         COLLECT_HOUR,
+        PUBLISH_DAY,
         PUBLISH_HOUR,
         COLLECT_HOUR,
     )
