@@ -59,5 +59,4 @@ MAX_VIDEO_SEARCHES_PER_COLLECT: int | None = _max_searches_setting(
 
 RETENTION_DAYS: int = int(os.getenv("RETENTION_DAYS", "30"))
 COLLECT_HOUR: int = int(os.getenv("COLLECT_HOUR", "6"))
-PUBLISH_DAY: str = os.getenv("PUBLISH_DAY", "monday")
 PUBLISH_HOUR: int = int(os.getenv("PUBLISH_HOUR", "8"))
