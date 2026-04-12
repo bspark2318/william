@@ -129,12 +129,12 @@ def _fallback_bullets(raw: str) -> list[str]:
     return parts[:4] if parts else [text[:200]]
 
 
-def _call_openai(system: str, user: str) -> str:
+def _call_openai(system: str, user: str, *, model: str = "gpt-4o-mini") -> str:
     client = OpenAI(api_key=OPENAI_API_KEY, timeout=120.0)
     for attempt in range(_MAX_RETRIES):
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=model,
                 temperature=0.3,
                 messages=[
                     {"role": "system", "content": system},
@@ -200,7 +200,7 @@ def comparative_select_stories(candidates: list[dict]) -> list[dict]:
     if not candidates:
         return []
     payload = json.dumps([
-        {"id": c["id"], "title": c["title"], "summary": c["summary"][:400], "source": c["source"]}
+        {"id": c["id"], "title": c["title"], "summary": c["summary"][:1500], "source": c["source"]}
         for c in candidates
     ])
     raw = _call_openai(_COMPARATIVE_STORY_PROMPT, payload)

@@ -218,19 +218,20 @@ def publish_issue(db: Session | None = None) -> dict:
         db = SessionLocal()
 
     try:
+        window_start = datetime.now(timezone.utc) - timedelta(days=7)
         story_candidates = (
             db.query(CandidateStory)
-            .filter(CandidateStory.processed == False)  # noqa: E712
+            .filter(CandidateStory.collected_at >= window_start)
             .all()
         )
         video_candidates = (
             db.query(CandidateVideo)
-            .filter(CandidateVideo.processed == False)  # noqa: E712
+            .filter(CandidateVideo.collected_at >= window_start)
             .all()
         )
 
         if not story_candidates:
-            logger.warning("No unprocessed story candidates — skipping publish")
+            logger.warning("No story candidates in the last 7 days — skipping publish")
             return {"status": "skipped", "reason": "no story candidates"}
 
         # Score any stragglers that missed daily scoring
@@ -361,11 +362,6 @@ def publish_issue(db: Session | None = None) -> dict:
                 description=cand.description,
             )
             db.add(video)
-
-        for c in story_candidates:
-            c.processed = True
-        for c in video_candidates:
-            c.processed = True
 
         db.commit()
         logger.info(
