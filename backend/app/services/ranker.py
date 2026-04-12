@@ -203,7 +203,7 @@ def comparative_select_stories(candidates: list[dict]) -> list[dict]:
         {"id": c["id"], "title": c["title"], "summary": c["summary"][:1500], "source": c["source"]}
         for c in candidates
     ])
-    raw = _call_openai(_COMPARATIVE_STORY_PROMPT, payload, model="gpt-4o")
+    raw = _call_openai(_COMPARATIVE_STORY_PROMPT, payload)
     return _parse_json_array(raw, candidates[:5])
 
 
@@ -224,7 +224,7 @@ def comparative_select_videos(candidates: list[dict]) -> list[dict]:
         }
         for c in candidates
     ])
-    raw = _call_openai(_COMPARATIVE_VIDEO_PROMPT, payload, model="gpt-4o")
+    raw = _call_openai(_COMPARATIVE_VIDEO_PROMPT, payload)
     return _parse_json_array(raw, candidates[:3])
 
 
@@ -239,7 +239,7 @@ def tight_bullets(title: str, raw_content: str) -> list[str]:
     if not OPENAI_API_KEY:
         return _fallback_bullets(body or title)
     user = f"Title: {title}\n\nBody:\n{body}"
-    raw = _call_openai(_BULLETS_SYSTEM_PROMPT, user, model="gpt-4o")
+    raw = _call_openai(_BULLETS_SYSTEM_PROMPT, user)
     try:
         parsed = json.loads(raw)
         if isinstance(parsed, list) and all(isinstance(x, str) and x.strip() for x in parsed):
