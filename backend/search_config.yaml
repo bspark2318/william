@@ -29,3 +29,8 @@ settings:
   min_video_views: 5000
   min_video_duration_seconds: 60
   max_video_duration_seconds: 2700
+  heuristic_reject_bottom_pct: 25
+  video_finalists: 10
+  video_publish_lookback_days: 7
+  ideal_video_duration_min: 300
+  ideal_video_duration_max: 1500

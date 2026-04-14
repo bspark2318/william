@@ -37,6 +37,17 @@ MIN_VIDEO_VIEWS: int = _settings.get("min_video_views", 500)
 MIN_VIDEO_DURATION_SECS: int = _settings.get("min_video_duration_seconds", 60)
 MAX_VIDEO_DURATION_SECS: int = _settings.get("max_video_duration_seconds", 5400)
 
+HEURISTIC_REJECT_BOTTOM_PCT: int = _settings.get("heuristic_reject_bottom_pct", 25)
+VIDEO_FINALISTS: int = _settings.get("video_finalists", 10)
+VIDEO_PUBLISH_LOOKBACK_DAYS: int = int(
+    os.getenv(
+        "VIDEO_PUBLISH_LOOKBACK_DAYS",
+        str(_settings.get("video_publish_lookback_days", 7)),
+    )
+)
+IDEAL_VIDEO_DURATION_MIN: int = _settings.get("ideal_video_duration_min", 300)
+IDEAL_VIDEO_DURATION_MAX: int = _settings.get("ideal_video_duration_max", 1500)
+
 
 def _max_searches_setting(env_key: str, yaml_key: str) -> int | None:
     raw = os.getenv(env_key)
@@ -59,5 +70,7 @@ MAX_VIDEO_SEARCHES_PER_COLLECT: int | None = _max_searches_setting(
 
 RETENTION_DAYS: int = int(os.getenv("RETENTION_DAYS", "30"))
 COLLECT_HOUR: int = int(os.getenv("COLLECT_HOUR", "6"))
-PUBLISH_DAY: str = os.getenv("PUBLISH_DAY", "monday")
+# Publish runs every day at this hour (UTC). Set after COLLECT_HOUR so candidates are scored first.
 PUBLISH_HOUR: int = int(os.getenv("PUBLISH_HOUR", "8"))
+# Unused (legacy env): weekly publish was keyed by day; publish is now daily.
+PUBLISH_DAY: str = os.getenv("PUBLISH_DAY", "monday")

@@ -11,7 +11,7 @@ def test_list_candidates_empty(client):
     assert data["videos"] == []
 
 
-def test_list_candidates_unprocessed_only(client, db_session):
+def test_list_candidates_stories_unprocessed_videos_in_lookback(client, db_session):
     s = CandidateStory(
         title="t",
         summary="s",
@@ -37,7 +37,7 @@ def test_list_candidates_unprocessed_only(client, db_session):
         thumbnail_url="https://t.example",
         published_at="2026-04-01",
         search_query="vq",
-        processed=False,
+        processed=True,
     )
     db_session.add_all([s, s2, v])
     db_session.commit()

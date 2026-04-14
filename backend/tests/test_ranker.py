@@ -95,6 +95,56 @@ def test_comparative_select_videos_fallback(monkeypatch):
     assert out[0]["id"] == 1
 
 
+def test_comparative_select_videos_with_rich_metadata(monkeypatch):
+    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "fake")
+    monkeypatch.setattr(
+        ranker, "_call_openai",
+        lambda s, u: json.dumps([{"id": 1, "rank": 1, "topic": "llm"}]),
+    )
+    cands = [{
+        "id": 1, "title": "v", "channel": "c", "description": "d",
+        "content_type": "deep_analysis", "view_velocity": 300.0,
+        "engagement_rate": 0.02, "duration_seconds": 900,
+        "channel_tier": "top", "transcript_excerpt": "some transcript...",
+    }]
+    out = ranker.comparative_select_videos(cands)
+    assert out == [{"id": 1, "rank": 1, "topic": "llm"}]
+
+
+# ---------------------------------------------------------------------------
+# classify_video_content
+# ---------------------------------------------------------------------------
+
+def test_classify_regex_fallback_without_api_key(monkeypatch):
+    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "")
+    cands = [
+        {"id": 1, "title": "How to fine-tune LLMs", "channel": "c", "description": "tutorial"},
+        {"id": 2, "title": "GPT-5 deep dive analysis", "channel": "c", "description": ""},
+        {"id": 3, "title": "AI news this week roundup", "channel": "c", "description": ""},
+        {"id": 4, "title": "My reaction to Claude 4", "channel": "c", "description": ""},
+    ]
+    out = ranker.classify_video_content(cands)
+    type_map = {c["id"]: c["content_type"] for c in out}
+    assert type_map[1] == "tutorial"
+    assert type_map[2] == "deep_analysis"
+    assert type_map[3] == "news_roundup"
+    assert type_map[4] == "reaction"
+
+
+def test_classify_llm_success(monkeypatch):
+    monkeypatch.setattr(ranker, "OPENAI_API_KEY", "fake")
+    monkeypatch.setattr(
+        ranker, "_call_openai",
+        lambda s, u: json.dumps([{"id": 1, "content_type": "demo"}]),
+    )
+    out = ranker.classify_video_content([{"id": 1, "title": "t", "channel": "c"}])
+    assert out == [{"id": 1, "content_type": "demo"}]
+
+
+def test_classify_empty():
+    assert ranker.classify_video_content([]) == []
+
+
 # ---------------------------------------------------------------------------
 # tight_bullets + generate_title (unchanged)
 # ---------------------------------------------------------------------------

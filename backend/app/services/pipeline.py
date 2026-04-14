@@ -1,12 +1,28 @@
 import logging
+import math
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from ..config import RETENTION_DAYS
+from ..config import (
+    HEURISTIC_REJECT_BOTTOM_PCT,
+    IDEAL_VIDEO_DURATION_MAX,
+    IDEAL_VIDEO_DURATION_MIN,
+    RETENTION_DAYS,
+    VIDEO_FINALISTS,
+    VIDEO_PUBLISH_LOOKBACK_DAYS,
+)
 from ..database import SessionLocal
-from ..models import CandidateStory, CandidateVideo, FeaturedVideo, Issue, Story
+from ..models import (
+    CandidateStory,
+    CandidateVideo,
+    ChannelReputation,
+    FeaturedVideo,
+    Issue,
+    Story,
+)
 from .ranker import (
+    classify_video_content,
     comparative_select_stories,
     comparative_select_videos,
     generate_title,
@@ -21,7 +37,6 @@ logger = logging.getLogger(__name__)
 
 _JACCARD_THRESHOLD = 0.5
 _STORY_FINALISTS = 12
-_VIDEO_FINALISTS = 8
 _MIN_TAVILY_SCORE = 0.3
 
 
@@ -108,17 +123,145 @@ def _heuristic_filter_stories(candidates: list) -> tuple[list, list]:
     return survivors, rejects
 
 
-def _heuristic_filter_videos(candidates: list) -> tuple[list, list]:
-    """Filter videos by view_count. Returns (survivors, rejects)."""
+def _duration_preference(seconds: int) -> float:
+    """Bell-curve score favouring IDEAL_VIDEO_DURATION_MIN..MAX range."""
+    if seconds <= 0:
+        return 0.0
+    lo, hi = IDEAL_VIDEO_DURATION_MIN, IDEAL_VIDEO_DURATION_MAX
+    mid = (lo + hi) / 2
+    if lo <= seconds <= hi:
+        return 10.0
+    dist = min(abs(seconds - lo), abs(seconds - hi))
+    return max(10.0 * math.exp(-((dist / mid) ** 2)), 0.5)
+
+
+def _freshness_decay(published_at: str) -> float:
+    """Linear decay: 10 for just-published, 0 at 7+ days old."""
+    try:
+        pub = datetime.fromisoformat(published_at + "T00:00:00+00:00")
+        hours = (datetime.now(timezone.utc) - pub).total_seconds() / 3600
+    except Exception:
+        hours = 168.0
+    return max(10.0 * (1.0 - hours / 168.0), 0.0)
+
+
+_TIER_SCORES = {"top": 10, "good": 7, "mid": 5, "low": 2, "unknown": 4}
+
+
+def _compute_video_heuristic(v, channel_tier: str) -> float:
+    """Weighted composite score across multiple signals (0-10 scale)."""
+    velocity_score = min((v.view_velocity or 0) / 500, 10.0)
+    engagement_score = min((v.engagement_rate or 0) * 1000, 10.0)
+    views_score = min((v.view_count or 0) / 100_000, 10.0)
+    dur_score = _duration_preference(v.duration_seconds or 0)
+    ch_score = _TIER_SCORES.get(channel_tier, 4)
+    fresh_score = _freshness_decay(v.published_at or "")
+
+    return (
+        velocity_score * 0.25
+        + engagement_score * 0.20
+        + views_score * 0.10
+        + dur_score * 0.10
+        + ch_score * 0.20
+        + fresh_score * 0.15
+    )
+
+
+def _heuristic_filter_videos(
+    candidates: list, channel_tiers: dict[str, str]
+) -> tuple[list, list]:
+    """Multi-signal heuristic filter. Returns (survivors, rejects)."""
     if not candidates:
         return [], []
-    candidates_sorted = sorted(candidates, key=lambda v: v.view_count or 0, reverse=True)
-    cutoff = max(len(candidates_sorted) // 2, 1)
-    survivors = candidates_sorted[:cutoff]
-    rejects = candidates_sorted[cutoff:]
 
-    logger.info("Heuristic filter: %d video survivors, %d rejected", len(survivors), len(rejects))
+    scored = [
+        (c, _compute_video_heuristic(c, channel_tiers.get(c.channel, "unknown")))
+        for c in candidates
+    ]
+    scored.sort(key=lambda x: x[1], reverse=True)
+
+    reject_count = max(int(len(scored) * HEURISTIC_REJECT_BOTTOM_PCT / 100), 0)
+    cutoff = len(scored) - reject_count
+    cutoff = max(cutoff, 1)
+
+    survivors = [s[0] for s in scored[:cutoff]]
+    rejects = [s[0] for s in scored[cutoff:]]
+
+    logger.info(
+        "Heuristic filter: %d video survivors, %d rejected (bottom %d%%)",
+        len(survivors), len(rejects), HEURISTIC_REJECT_BOTTOM_PCT,
+    )
     return survivors, rejects
+
+
+# ---------------------------------------------------------------------------
+# Channel reputation helpers
+# ---------------------------------------------------------------------------
+
+def _get_channel_tiers(db: Session, channels: list[str]) -> dict[str, str]:
+    """Look up quality_tier for a list of channel names."""
+    if not channels:
+        return {}
+    reps = (
+        db.query(ChannelReputation)
+        .filter(ChannelReputation.channel_name.in_(channels))
+        .all()
+    )
+    return {r.channel_name: r.quality_tier for r in reps}
+
+
+def _recompute_tier(rep: ChannelReputation) -> str:
+    seen = rep.times_seen or 0
+    selected = rep.times_selected or 0
+    avg = rep.avg_importance_score or 0.0
+
+    if selected >= 3 and avg >= 7.0:
+        return "top"
+    if selected >= 1 and avg >= 5.0:
+        return "good"
+    if seen >= 3 and avg >= 3.0:
+        return "mid"
+    if seen >= 5 and (selected == 0 or avg < 3.0):
+        return "low"
+    return "unknown"
+
+
+def _update_channel_seen(db: Session, channel: str, score: float) -> None:
+    """Upsert channel reputation after scoring a video."""
+    rep = (
+        db.query(ChannelReputation)
+        .filter(ChannelReputation.channel_name == channel)
+        .first()
+    )
+    if rep is None:
+        rep = ChannelReputation(
+            channel_name=channel,
+            times_seen=1,
+            avg_importance_score=score,
+        )
+        db.add(rep)
+    else:
+        total = rep.avg_importance_score * rep.times_seen + score
+        rep.times_seen += 1
+        rep.avg_importance_score = total / rep.times_seen
+    rep.quality_tier = _recompute_tier(rep)
+
+
+def _update_channel_selected(db: Session, channel: str) -> None:
+    """Increment times_selected when a video is published."""
+    rep = (
+        db.query(ChannelReputation)
+        .filter(ChannelReputation.channel_name == channel)
+        .first()
+    )
+    if rep is None:
+        rep = ChannelReputation(
+            channel_name=channel, times_seen=1, times_selected=1
+        )
+        db.add(rep)
+    else:
+        rep.times_selected += 1
+    rep.quality_tier = _recompute_tier(rep)
 
 
 # ---------------------------------------------------------------------------
@@ -170,22 +313,65 @@ def _score_unscored(db: Session) -> None:
         for r in video_rejects:
             r.importance_score = 0.0
 
-        video_survivors, more_rejects = _heuristic_filter_videos(video_survivors)
+        # Classify content types before heuristic filtering
+        if video_survivors:
+            classify_dicts = [
+                {
+                    "id": v.id,
+                    "title": v.title,
+                    "channel": v.channel,
+                    "description": v.description,
+                    "transcript_excerpt": v.transcript_excerpt,
+                }
+                for v in video_survivors
+            ]
+            try:
+                classified = classify_video_content(classify_dicts)
+                type_map = {c["id"]: c.get("content_type", "other") for c in classified}
+                for v in video_survivors:
+                    v.content_type = type_map.get(v.id, "other")
+            except Exception:
+                logger.exception("Content classification failed — defaulting to 'other'")
+                for v in video_survivors:
+                    v.content_type = "other"
+
+        channels = list({v.channel for v in video_survivors})
+        channel_tiers = _get_channel_tiers(db, channels)
+
+        video_survivors, more_rejects = _heuristic_filter_videos(
+            video_survivors, channel_tiers
+        )
         for r in more_rejects:
             r.importance_score = 0.0
 
         if video_survivors:
-            dicts = [{"id": v.id, "title": v.title, "channel": v.channel} for v in video_survivors]
+            dicts = [
+                {
+                    "id": v.id,
+                    "title": v.title,
+                    "channel": v.channel,
+                    "description": v.description,
+                    "view_count": v.view_count,
+                    "duration_seconds": v.duration_seconds,
+                    "view_velocity": v.view_velocity,
+                    "engagement_rate": v.engagement_rate,
+                    "channel_tier": channel_tiers.get(v.channel, "unknown"),
+                    "content_type": v.content_type,
+                }
+                for v in video_survivors
+            ]
             try:
                 scored = quick_rank_videos(dicts)
                 score_map = {v["id"]: v.get("score", 5.0) for v in scored}
                 for v in video_survivors:
                     v.importance_score = score_map.get(v.id, 5.0)
+                    _update_channel_seen(db, v.channel, v.importance_score)
                 logger.info("Scored %d videos via LLM", len(video_survivors))
             except Exception:
                 logger.exception("LLM video scoring failed — using view_count fallback")
                 for v in video_survivors:
                     v.importance_score = min((v.view_count or 0) / 10000, 10.0)
+                    _update_channel_seen(db, v.channel, v.importance_score)
 
     db.commit()
 
@@ -212,7 +398,12 @@ def collect_candidates(db: Session | None = None) -> dict:
 
 
 def publish_issue(db: Session | None = None) -> dict:
-    """Weekly job: comparative-select from pre-scored candidates, create Issue."""
+    """Comparative-select from pre-scored candidates, create Issue.
+
+    Video pool: all candidates with collected_at within VIDEO_PUBLISH_LOOKBACK_DAYS
+    (rolling window), including any already featured in a prior issue — comparative
+    selection may keep strong picks. CandidateVideo.processed is not used for videos.
+    """
     own_session = db is None
     if own_session:
         db = SessionLocal()
@@ -224,9 +415,10 @@ def publish_issue(db: Session | None = None) -> dict:
             .filter(CandidateStory.collected_at >= window_start)
             .all()
         )
+        video_cutoff = datetime.now(timezone.utc) - timedelta(days=VIDEO_PUBLISH_LOOKBACK_DAYS)
         video_candidates = (
             db.query(CandidateVideo)
-            .filter(CandidateVideo.collected_at >= window_start)
+            .filter(CandidateVideo.collected_at >= video_cutoff)
             .all()
         )
 
@@ -252,7 +444,23 @@ def publish_issue(db: Session | None = None) -> dict:
         video_stragglers = [c for c in video_candidates if c.importance_score is None]
         if video_stragglers:
             logger.info("Scoring %d straggler videos inline", len(video_stragglers))
-            dicts = [{"id": v.id, "title": v.title, "channel": v.channel} for v in video_stragglers]
+            straggler_channels = list({v.channel for v in video_stragglers})
+            straggler_tiers = _get_channel_tiers(db, straggler_channels)
+            dicts = [
+                {
+                    "id": v.id,
+                    "title": v.title,
+                    "channel": v.channel,
+                    "description": v.description,
+                    "view_count": v.view_count,
+                    "duration_seconds": v.duration_seconds,
+                    "view_velocity": v.view_velocity,
+                    "engagement_rate": v.engagement_rate,
+                    "channel_tier": straggler_tiers.get(v.channel, "unknown"),
+                    "content_type": v.content_type or "other",
+                }
+                for v in video_stragglers
+            ]
             try:
                 scored = quick_rank_videos(dicts)
                 score_map = {v["id"]: v.get("score", 5.0) for v in scored}
@@ -288,7 +496,7 @@ def publish_issue(db: Session | None = None) -> dict:
 
         # --- Comparative finals: videos ---
         video_candidates.sort(key=lambda v: v.importance_score or 0, reverse=True)
-        video_finalists = video_candidates[:_VIDEO_FINALISTS]
+        video_finalists = video_candidates[:VIDEO_FINALISTS]
 
         seen_youtube: set[str] = set()
         deduped_video_finalists = []
@@ -296,6 +504,9 @@ def publish_issue(db: Session | None = None) -> dict:
             if v.youtube_id not in seen_youtube:
                 seen_youtube.add(v.youtube_id)
                 deduped_video_finalists.append(v)
+
+        finalist_channels = list({v.channel for v in deduped_video_finalists})
+        finalist_tiers = _get_channel_tiers(db, finalist_channels)
 
         top_video_ids: list[int] = []
         if deduped_video_finalists:
@@ -307,6 +518,12 @@ def publish_issue(db: Session | None = None) -> dict:
                     "description": v.description,
                     "youtube_id": v.youtube_id,
                     "importance_score": v.importance_score,
+                    "content_type": v.content_type or "other",
+                    "view_velocity": v.view_velocity,
+                    "engagement_rate": v.engagement_rate,
+                    "duration_seconds": v.duration_seconds,
+                    "channel_tier": finalist_tiers.get(v.channel, "unknown"),
+                    "transcript_excerpt": v.transcript_excerpt,
                 }
                 for v in deduped_video_finalists
             ]
@@ -362,6 +579,10 @@ def publish_issue(db: Session | None = None) -> dict:
                 description=cand.description,
             )
             db.add(video)
+            _update_channel_selected(db, cand.channel)
+
+        for c in story_candidates:
+            c.processed = True
 
         db.commit()
         logger.info(

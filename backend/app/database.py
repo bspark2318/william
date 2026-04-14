@@ -42,12 +42,22 @@ def ensure_sqlite_columns() -> None:
             conn.execute(text("PRAGMA table_info(candidate_videos)")).mappings().all()
         )
         video_names = {r["name"] for r in video_cols}
-        if video_cols and "view_count" not in video_names:
-            conn.execute(text("ALTER TABLE candidate_videos ADD COLUMN view_count INTEGER"))
-        if video_cols and "duration_seconds" not in video_names:
-            conn.execute(
-                text("ALTER TABLE candidate_videos ADD COLUMN duration_seconds INTEGER")
-            )
+        _new_video_cols = {
+            "view_count": "INTEGER",
+            "duration_seconds": "INTEGER",
+            "like_count": "INTEGER",
+            "comment_count": "INTEGER",
+            "engagement_rate": "REAL",
+            "view_velocity": "REAL",
+            "transcript_excerpt": "TEXT",
+            "content_type": "TEXT",
+        }
+        if video_cols:
+            for col, typ in _new_video_cols.items():
+                if col not in video_names:
+                    conn.execute(
+                        text(f"ALTER TABLE candidate_videos ADD COLUMN {col} {typ}")
+                    )
 
 
 def get_db():

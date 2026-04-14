@@ -33,6 +33,26 @@ def _parse_duration(iso: str) -> int:
     return h * 3600 + mi * 60 + s
 
 
+def _hours_since_publish(iso_str: str) -> float:
+    """Hours elapsed since an ISO 8601 publish timestamp."""
+    try:
+        pub = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        delta = datetime.now(timezone.utc) - pub
+        return max(delta.total_seconds() / 3600, 0.1)
+    except Exception:
+        return 168.0  # default to 7 days
+
+
+def _fetch_transcript_safe(youtube_id: str) -> str | None:
+    """Best-effort transcript fetch; returns None on any failure."""
+    try:
+        from .youtube_captions import fetch_transcript
+        return fetch_transcript(youtube_id)
+    except Exception:
+        logger.debug("Transcript unavailable for %s", youtube_id)
+        return None
+
+
 def search_videos(
     db: Session,
     queries: list[str] | None = None,
@@ -98,9 +118,17 @@ def search_videos(
 
         stats_by_id: dict[str, dict] = {}
         for v in stats_resp.get("items", []):
-            views = int(v.get("statistics", {}).get("viewCount", 0))
+            _stats = v.get("statistics", {})
+            views = int(_stats.get("viewCount", 0))
+            likes = int(_stats.get("likeCount", 0))
+            comments = int(_stats.get("commentCount", 0))
             duration = _parse_duration(v.get("contentDetails", {}).get("duration", ""))
-            stats_by_id[v["id"]] = {"views": views, "duration": duration}
+            stats_by_id[v["id"]] = {
+                "views": views,
+                "likes": likes,
+                "comments": comments,
+                "duration": duration,
+            }
 
         for item in items:
             video_id = item["id"]["videoId"]
@@ -119,6 +147,8 @@ def search_videos(
 
             st = stats_by_id.get(video_id, {})
             views = st.get("views", 0)
+            likes = st.get("likes", 0)
+            comments = st.get("comments", 0)
             duration = st.get("duration", 0)
 
             if views < MIN_VIDEO_VIEWS:
@@ -126,7 +156,15 @@ def search_videos(
             if duration < MIN_VIDEO_DURATION_SECS or duration > MAX_VIDEO_DURATION_SECS:
                 continue
 
+            engagement_rate = (likes + comments) / views if views > 0 else 0.0
+
             snippet = item.get("snippet", {})
+            published_iso = snippet.get("publishedAt", "")
+            hours_since = _hours_since_publish(published_iso)
+            view_velocity = views / hours_since if hours_since > 0 else 0.0
+
+            transcript = _fetch_transcript_safe(video_id)
+
             candidate = CandidateVideo(
                 youtube_id=video_id,
                 title=snippet.get("title", "Untitled"),
@@ -135,9 +173,14 @@ def search_videos(
                 .get("high", {})
                 .get("url", snippet.get("thumbnails", {}).get("default", {}).get("url", "")),
                 description=snippet.get("description", "")[:500] or None,
-                published_at=snippet.get("publishedAt", "")[:10],
+                published_at=published_iso[:10],
                 view_count=views,
                 duration_seconds=duration,
+                like_count=likes,
+                comment_count=comments,
+                engagement_rate=engagement_rate,
+                view_velocity=view_velocity,
+                transcript_excerpt=transcript,
                 search_query=query,
             )
             db.add(candidate)

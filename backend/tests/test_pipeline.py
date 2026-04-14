@@ -1,11 +1,19 @@
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from app.database import SessionLocal
-from app.models import CandidateStory, CandidateVideo, Issue
+from app.models import CandidateStory, CandidateVideo, ChannelReputation, Issue
 from app.services.pipeline import (
+    _compute_video_heuristic,
     _dedup_stories,
     _dedup_videos,
+    _duration_preference,
+    _freshness_decay,
     _heuristic_filter_stories,
+    _heuristic_filter_videos,
+    _recompute_tier,
+    _update_channel_seen,
+    _update_channel_selected,
     collect_candidates,
     publish_issue,
 )
@@ -36,17 +44,36 @@ def _add_story(db, title, url, tavily_score=0.8, importance_score=7.0):
     return s
 
 
-def _add_video(db, youtube_id, title, view_count=10000, importance_score=7.0):
+def _add_video(
+    db,
+    youtube_id,
+    title,
+    view_count=10000,
+    importance_score=7.0,
+    channel="TestChannel",
+    like_count=100,
+    comment_count=10,
+    engagement_rate=0.011,
+    view_velocity=200.0,
+    duration_seconds=600,
+    content_type="deep_analysis",
+):
     v = CandidateVideo(
         youtube_id=youtube_id,
         title=title,
-        channel="TestChannel",
+        channel=channel,
         thumbnail_url=f"https://t.example/{youtube_id}",
-        published_at="2026-04-01",
+        published_at="2026-04-09",
         search_query="vq",
         processed=False,
         view_count=view_count,
         importance_score=importance_score,
+        like_count=like_count,
+        comment_count=comment_count,
+        engagement_rate=engagement_rate,
+        view_velocity=view_velocity,
+        duration_seconds=duration_seconds,
+        content_type=content_type,
     )
     db.add(v)
     return v
@@ -171,7 +198,7 @@ def test_publish_creates_issue(mock_comp_s, mock_comp_v, mock_title, _mock_bulle
         assert issue.stories[0].bullet_points == ["x", "y", "z"]
         assert len(issue.featured_videos) == 1
         assert all(s.processed for s in db.query(CandidateStory).all())
-        assert all(v.processed for v in db.query(CandidateVideo).all())
+        assert all(not v.processed for v in db.query(CandidateVideo).all())
     finally:
         db.close()
 
@@ -210,5 +237,181 @@ def test_collect_calls_score_unscored(mock_news, mock_vids, mock_score):
         assert out["stories_added"] == 5
         assert out["videos_added"] == 3
         mock_score.assert_called_once_with(db)
+    finally:
+        db.close()
+
+
+@patch("app.services.pipeline.tight_bullets", return_value=["x", "y", "z"])
+@patch("app.services.pipeline.generate_title", return_value="Mock Title")
+@patch("app.services.pipeline.comparative_select_videos")
+@patch("app.services.pipeline.comparative_select_stories")
+def test_publish_does_not_mark_videos_processed(
+    mock_comp_s, mock_comp_v, _mock_title, _mock_bullets
+):
+    """Featured picks stay in the rolling pool; videos are not marked processed on publish."""
+    db = SessionLocal()
+    try:
+        s1 = _add_story(db, "Story A", "https://a.example", importance_score=9.0)
+        v_win = _add_video(db, "vid1", "Video A", importance_score=9.0)
+        v_lose = _add_video(db, "vid2", "Video B", importance_score=7.0)
+        db.commit()
+        db.refresh(s1)
+        db.refresh(v_win)
+        db.refresh(v_lose)
+
+        mock_comp_s.return_value = [{"id": s1.id, "rank": 1, "topic": "t"}]
+        mock_comp_v.return_value = [{"id": v_win.id, "rank": 1, "topic": "v"}]
+
+        out = publish_issue(db)
+        assert out["status"] == "published"
+        assert out["videos"] == 1
+
+        db.refresh(v_win)
+        db.refresh(v_lose)
+        assert v_win.processed is False
+        assert v_lose.processed is False
+    finally:
+        db.close()
+
+
+@patch("app.services.pipeline.tight_bullets", return_value=["x", "y", "z"])
+@patch("app.services.pipeline.generate_title", return_value="Mock Title")
+@patch("app.services.pipeline.comparative_select_videos")
+@patch("app.services.pipeline.comparative_select_stories")
+def test_publish_excludes_videos_outside_lookback(
+    mock_comp_s, mock_comp_v, _mock_title, _mock_bullets
+):
+    db = SessionLocal()
+    try:
+        s1 = _add_story(db, "Story A", "https://a.example", importance_score=9.0)
+        v_old = _add_video(db, "vid-old", "Old pool video", importance_score=9.0)
+        v_old.collected_at = datetime.now(timezone.utc) - timedelta(days=10)
+        db.commit()
+        db.refresh(s1)
+        db.refresh(v_old)
+
+        mock_comp_s.return_value = [{"id": s1.id, "rank": 1, "topic": "t"}]
+        mock_comp_v.return_value = []
+
+        out = publish_issue(db)
+        assert out["status"] == "published"
+        assert out["videos"] == 0
+
+        db.refresh(v_old)
+        assert v_old.processed is False
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Multi-signal heuristic scoring
+# ---------------------------------------------------------------------------
+
+def test_duration_preference_ideal_range():
+    assert _duration_preference(600) == 10.0
+    assert _duration_preference(300) == 10.0
+    assert _duration_preference(1500) == 10.0
+
+
+def test_duration_preference_outside_range():
+    assert _duration_preference(30) < 10.0
+    assert _duration_preference(5000) < 10.0
+    assert _duration_preference(0) == 0.0
+
+
+def test_freshness_decay():
+    from datetime import date, datetime, timedelta, timezone
+
+    today = date.today().isoformat()
+    assert _freshness_decay(today) > 8.0
+
+    old = (date.today() - timedelta(days=10)).isoformat()
+    assert _freshness_decay(old) == 0.0
+
+
+def test_compute_video_heuristic_returns_bounded_score():
+    class FakeVideo:
+        view_velocity = 500.0
+        engagement_rate = 0.01
+        view_count = 100000
+        duration_seconds = 600
+        published_at = "2026-04-09"
+
+    score = _compute_video_heuristic(FakeVideo(), "top")
+    assert 0.0 <= score <= 10.0
+
+
+def test_heuristic_filter_videos_rejects_bottom():
+    db = SessionLocal()
+    try:
+        for i in range(8):
+            _add_video(
+                db, f"yt{i}", f"Video {i}",
+                view_count=(i + 1) * 10000,
+                view_velocity=(i + 1) * 100,
+                importance_score=None,
+            )
+        db.commit()
+
+        candidates = db.query(CandidateVideo).all()
+        survivors, rejects = _heuristic_filter_videos(candidates, {})
+
+        assert len(survivors) == 6
+        assert len(rejects) == 2
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Channel reputation
+# ---------------------------------------------------------------------------
+
+def test_recompute_tier():
+    rep = ChannelReputation(channel_name="X", times_seen=10, times_selected=5, avg_importance_score=8.0)
+    assert _recompute_tier(rep) == "top"
+
+    rep2 = ChannelReputation(channel_name="Y", times_seen=10, times_selected=1, avg_importance_score=6.0)
+    assert _recompute_tier(rep2) == "good"
+
+    rep3 = ChannelReputation(channel_name="Z", times_seen=10, times_selected=0, avg_importance_score=2.0)
+    assert _recompute_tier(rep3) == "low"
+
+    rep4 = ChannelReputation(channel_name="W", times_seen=1, times_selected=0, avg_importance_score=5.0)
+    assert _recompute_tier(rep4) == "unknown"
+
+
+def test_update_channel_seen_creates_and_updates():
+    db = SessionLocal()
+    try:
+        _update_channel_seen(db, "NewChannel", 8.0)
+        db.commit()
+
+        rep = db.query(ChannelReputation).filter_by(channel_name="NewChannel").one()
+        assert rep.times_seen == 1
+        assert rep.avg_importance_score == 8.0
+
+        _update_channel_seen(db, "NewChannel", 6.0)
+        db.commit()
+        db.refresh(rep)
+
+        assert rep.times_seen == 2
+        assert rep.avg_importance_score == 7.0
+    finally:
+        db.close()
+
+
+def test_update_channel_selected():
+    db = SessionLocal()
+    try:
+        _update_channel_selected(db, "SelChannel")
+        db.commit()
+
+        rep = db.query(ChannelReputation).filter_by(channel_name="SelChannel").one()
+        assert rep.times_selected == 1
+
+        _update_channel_selected(db, "SelChannel")
+        db.commit()
+        db.refresh(rep)
+        assert rep.times_selected == 2
     finally:
         db.close()

@@ -1,6 +1,9 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from ..config import VIDEO_PUBLISH_LOOKBACK_DAYS
 from ..database import get_db
 from ..models import CandidateStory, CandidateVideo
 from ..schemas import CandidateStoryOut, CandidateVideoOut
@@ -29,9 +32,10 @@ def list_candidates(db: Session = Depends(get_db)):
         .order_by(CandidateStory.collected_at.desc())
         .all()
     )
+    video_cutoff = datetime.now(timezone.utc) - timedelta(days=VIDEO_PUBLISH_LOOKBACK_DAYS)
     videos = (
         db.query(CandidateVideo)
-        .filter(CandidateVideo.processed == False)  # noqa: E712
+        .filter(CandidateVideo.collected_at >= video_cutoff)
         .order_by(CandidateVideo.collected_at.desc())
         .all()
     )

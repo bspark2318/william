@@ -79,6 +79,13 @@ class CandidateVideoOut(BaseModel):
     thumbnail_url: str
     description: str | None = None
     published_at: str
+    view_count: int | None = None
+    duration_seconds: int | None = None
+    like_count: int | None = None
+    comment_count: int | None = None
+    engagement_rate: float | None = None
+    view_velocity: float | None = None
+    content_type: str | None = None
     importance_score: float | None = None
     search_query: str
     processed: bool

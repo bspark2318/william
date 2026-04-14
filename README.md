@@ -13,8 +13,10 @@ AI news aggregator — auto-collects, ranks, and publishes a weekly newsletter.
 ```bash
 # Backend
 cd backend
-cp .env.dev.example .env.dev   # fill in API keys
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.dev.example .env.dev   # fill in API keys (or use existing .env.dev)
 uvicorn app.main:app --reload
 
 # Frontend

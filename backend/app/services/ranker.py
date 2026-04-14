@@ -35,17 +35,21 @@ No markdown fences, no extra text."""
 
 _QUICK_VIDEO_PROMPT = """\
 You are an AI-content curator for a newsletter read by ML engineers and tech executives.
-You will receive a JSON array of YouTube video titles with channel names.
+You will receive a JSON array of YouTube videos with metadata.
 
 Score each video 1-10 based on:
 - Covers a concrete AI development: new model, benchmark, demo, policy (weight 3x)
-- Channel credibility and production quality signals (weight 2x)
-- Unique perspective — not a rehash of mainstream coverage (weight 1x)
+- High engagement velocity (views_per_hour) signals trending content — weight this over raw view count (weight 2x)
+- Channel credibility: "top"/"good" tiers are trustworthy; "unknown" is neutral; "low" is suspect (weight 2x)
+- Content substance from description — does it promise real analysis or just hype? (weight 2x)
+- Content type: reward "deep_analysis" and "demo"; neutral for "news_roundup"/"interview"; penalise "tutorial"/"reaction"/"podcast_clip" (weight 1x)
+- Duration sweet spot: 8-25 min for deep dives is ideal; very short (<3 min) or very long (>40 min) less desirable (weight 1x)
 
 Hard penalties (score 1-2):
 - Generic tutorials ("How to use ChatGPT", "Learn AI in 10 minutes")
 - Clickbait titles with no substance
 - Reaction/commentary videos that add nothing new
+- Podcast clips without clear standalone value
 
 Return ONLY a JSON array: [{"id": <int>, "score": <float>}]
 No markdown fences, no extra text."""
@@ -71,18 +75,46 @@ Return ONLY a JSON array: [{"id": <int>, "rank": <int>, "topic": "<2-3 word topi
 No markdown fences, no extra text."""
 
 _COMPARATIVE_VIDEO_PROMPT = """\
-You are the editor of "The Context Window", a weekly AI newsletter.
-Below are this week's finalist videos with descriptions.
+You are the editor of "The Context Window", a weekly AI newsletter for ML engineers and tech executives.
+Below are this week's finalist videos with descriptions, metadata, and transcript excerpts (when available).
 
 Select the 3 best for publication and rank them 1 (top) to 3.
 
+Some entries may have been highlighted in a recent edition; if one is still among the strongest and most substantive choices, you may include it again.
+
 Rules:
 - Pick AT MOST 2 videos on the same topic (diversity matters)
-- Prefer substantive analysis over reaction/commentary
+- Prefer deep analysis and original reporting over reaction/commentary
+- Avoid selecting 2+ news roundups — at most 1
+- If a transcript excerpt is provided, use it to judge actual content quality and depth
+- At least one video should be a demo or deep-dive if available
+- Higher engagement_pct and views_per_hour signal quality — prefer these over raw views
+- Channel tier "top"/"good" adds credibility; "low" is a red flag
 - If two videos cover the exact same story, keep the better one
 - If fewer than 3 meet the bar, return fewer
 
 Return ONLY a JSON array: [{"id": <int>, "rank": <int>, "topic": "<2-3 word topic>"}]
+No markdown fences, no extra text."""
+
+# ---------------------------------------------------------------------------
+# Content-type classification
+# ---------------------------------------------------------------------------
+
+_CLASSIFY_VIDEO_PROMPT = """\
+You are classifying YouTube videos about AI/ML into content types.
+You will receive a JSON array of videos with title, channel, description, and optionally a transcript excerpt.
+
+Classify each into exactly ONE of these types:
+- "deep_analysis": in-depth technical breakdown, paper walkthrough, architecture deep-dive
+- "news_roundup": weekly/daily AI news compilation covering multiple stories
+- "demo": product demo, hands-on walkthrough, showing a tool/model in action
+- "tutorial": how-to, educational, step-by-step learning content
+- "reaction": commentary/reaction to someone else's work, hot takes
+- "interview": conversation, podcast, fireside chat with guests
+- "podcast_clip": clip from a longer podcast episode
+- "other": anything that doesn't fit above
+
+Return ONLY a JSON array: [{"id": <int>, "content_type": "<type>"}]
 No markdown fences, no extra text."""
 
 # ---------------------------------------------------------------------------
@@ -159,6 +191,60 @@ def _parse_json_array(raw: str, candidates: list[dict], default_score: float = 5
         return [{"id": c["id"], "score": default_score} for c in candidates]
 
 
+import re as _re
+
+_CONTENT_TYPE_PATTERNS = [
+    ("tutorial", _re.compile(r"(?i)\b(how to|tutorial|learn|beginner|step.by.step|course|guide)\b")),
+    ("reaction", _re.compile(r"(?i)\b(react(s|ing|ion)?( to)?|my thoughts on|hot take|response to)\b")),
+    ("podcast_clip", _re.compile(r"(?i)\b(podcast|episode|ep\.\s*\d|clip from)\b")),
+    ("interview", _re.compile(r"(?i)\b(interview|conversation with|fireside|talks? with|Q&A)\b")),
+    ("demo", _re.compile(r"(?i)\b(demo|hands.on|walkthrough|first look|trying|testing)\b")),
+    ("news_roundup", _re.compile(r"(?i)\b(this week|weekly|roundup|recap|news.*(update|digest|wrap))\b")),
+    ("deep_analysis", _re.compile(r"(?i)\b(paper|explained|deep.dive|analysis|technical|architecture|breakdown)\b")),
+]
+
+
+def _regex_classify(title: str, description: str | None) -> str:
+    text = f"{title} {description or ''}"
+    for content_type, pattern in _CONTENT_TYPE_PATTERNS:
+        if pattern.search(text):
+            return content_type
+    return "other"
+
+
+def classify_video_content(candidates: list[dict]) -> list[dict]:
+    """Classify videos into content types. Returns [{id, content_type}]."""
+    if not candidates:
+        return []
+    if not OPENAI_API_KEY:
+        logger.warning("OPENAI_API_KEY not set — using regex classification fallback")
+        return [
+            {"id": c["id"], "content_type": _regex_classify(c["title"], c.get("description"))}
+            for c in candidates
+        ]
+    payload = json.dumps([
+        {
+            "id": c["id"],
+            "title": c["title"],
+            "channel": c["channel"],
+            "description": (c.get("description") or "")[:200],
+            "transcript_excerpt": (c.get("transcript_excerpt") or "")[:300],
+        }
+        for c in candidates
+    ])
+    raw = _call_openai(_CLASSIFY_VIDEO_PROMPT, payload)
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return parsed
+    except json.JSONDecodeError:
+        logger.error("Classification JSON parse failed: %s", raw[:500])
+    return [
+        {"id": c["id"], "content_type": _regex_classify(c["title"], c.get("description"))}
+        for c in candidates
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Stage 1 public API — cheap title-only scoring
 # ---------------------------------------------------------------------------
@@ -176,13 +262,27 @@ def quick_rank_stories(candidates: list[dict]) -> list[dict]:
 
 
 def quick_rank_videos(candidates: list[dict]) -> list[dict]:
-    """Title-only scoring for daily collect. Returns [{id, score}]."""
+    """Multi-signal scoring for daily collect. Returns [{id, score}]."""
     if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY not set — returning zero scores")
         return [{"id": c["id"], "score": 0} for c in candidates]
     if not candidates:
         return []
-    payload = json.dumps([{"id": c["id"], "title": c["title"], "channel": c["channel"]} for c in candidates])
+    payload = json.dumps([
+        {
+            "id": c["id"],
+            "title": c["title"],
+            "channel": c["channel"],
+            "description": (c.get("description") or "")[:200],
+            "views": c.get("view_count", 0),
+            "duration_minutes": round((c.get("duration_seconds") or 0) / 60, 1),
+            "views_per_hour": round(c.get("view_velocity") or 0, 1),
+            "engagement_pct": round((c.get("engagement_rate") or 0) * 100, 2),
+            "channel_tier": c.get("channel_tier", "unknown"),
+            "content_type": c.get("content_type", "unknown"),
+        }
+        for c in candidates
+    ])
     raw = _call_openai(_QUICK_VIDEO_PROMPT, payload)
     return _parse_json_array(raw, candidates)
 
@@ -221,6 +321,12 @@ def comparative_select_videos(candidates: list[dict]) -> list[dict]:
             "title": c["title"],
             "channel": c["channel"],
             "description": (c.get("description") or "")[:300],
+            "content_type": c.get("content_type", "other"),
+            "views_per_hour": round(c.get("view_velocity") or 0, 1),
+            "engagement_pct": round((c.get("engagement_rate") or 0) * 100, 2),
+            "duration_minutes": round((c.get("duration_seconds") or 0) / 60, 1),
+            "channel_tier": c.get("channel_tier", "unknown"),
+            "transcript_excerpt": (c.get("transcript_excerpt") or "")[:500],
         }
         for c in candidates
     ])

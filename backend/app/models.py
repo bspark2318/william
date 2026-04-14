@@ -89,7 +89,25 @@ class CandidateVideo(Base):
     published_at = Column(String, nullable=False)
     view_count = Column(Integer, nullable=True)
     duration_seconds = Column(Integer, nullable=True)
+    like_count = Column(Integer, nullable=True)
+    comment_count = Column(Integer, nullable=True)
+    engagement_rate = Column(Float, nullable=True)
+    view_velocity = Column(Float, nullable=True)
+    transcript_excerpt = Column(Text, nullable=True)
+    content_type = Column(String, nullable=True)
     importance_score = Column(Float, nullable=True)
     search_query = Column(String, nullable=False)
     collected_at = Column(DateTime, default=func.now())
     processed = Column(Boolean, default=False)
+
+
+class ChannelReputation(Base):
+    __tablename__ = "channel_reputations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    channel_name = Column(String, unique=True, nullable=False)
+    times_seen = Column(Integer, default=0)
+    times_selected = Column(Integer, default=0)
+    avg_importance_score = Column(Float, default=0.0)
+    quality_tier = Column(String, default="unknown")
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
