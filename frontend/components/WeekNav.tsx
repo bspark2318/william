@@ -29,7 +29,7 @@ export default function WeekNav({ prevIssueId, nextIssueId, prevLabel, nextLabel
       )}
 
       <span className="text-[11px] text-ink-light uppercase tracking-[0.15em] font-body font-semibold">
-        Weekly Edition
+        Latest Edition
       </span>
 
       {nextIssueId != null ? (

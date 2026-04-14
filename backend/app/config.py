@@ -26,7 +26,7 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 NEWS_QUERIES: list[str] = _cfg.get("news_queries", ["artificial intelligence news"])
-VIDEO_QUERIES: list[str] = _cfg.get("video_queries", ["AI news this week"])
+VIDEO_QUERIES: list[str] = _cfg.get("video_queries", ["AI news today"])
 
 _settings = _cfg.get("settings") or {}
 

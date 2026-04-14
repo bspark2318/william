@@ -32,18 +32,18 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     const data = await fetchData(params.issue);
     if (!data) {
       return {
-        title: "The Context Window — Weekly AI Newsletter",
+        title: "The Context Window — Daily AI Briefing",
         description: "All the artificial intelligence news that's fit to print",
       };
     }
     const { issue } = data;
     return {
       title: `${issue.title} — The Context Window No. ${issue.edition}`,
-      description: `Week of ${issue.week_of}: ${issue.stories.length} stories on AI research, policy, and industry.`,
+      description: `${issue.stories.length} stories on AI research, policy, and industry from the past 7 days.`,
     };
   } catch {
     return {
-      title: "The Context Window — Weekly AI Newsletter",
+      title: "The Context Window — Daily AI Briefing",
       description: "All the artificial intelligence news that's fit to print",
     };
   }

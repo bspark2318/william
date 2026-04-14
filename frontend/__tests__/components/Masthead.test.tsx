@@ -33,8 +33,8 @@ describe("Masthead", () => {
     expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
   });
 
-  it("shows the Weekly Edition label", () => {
+  it("shows the Latest Edition label", () => {
     render(<Masthead weekOf="2026-04-07" />);
-    expect(screen.getByText(/Weekly Edition/)).toBeInTheDocument();
+    expect(screen.getByText(/Latest Edition/)).toBeInTheDocument();
   });
 });

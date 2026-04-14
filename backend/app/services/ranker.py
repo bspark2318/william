@@ -55,12 +55,12 @@ Return ONLY a JSON array: [{"id": <int>, "score": <float>}]
 No markdown fences, no extra text."""
 
 # ---------------------------------------------------------------------------
-# Stage 2 — weekly comparative finals (full summaries, topic diversity)
+# Stage 2 — comparative finals (full summaries, topic diversity)
 # ---------------------------------------------------------------------------
 
 _COMPARATIVE_STORY_PROMPT = """\
-You are the editor of "The Context Window", a weekly AI newsletter for ML engineers and tech executives.
-Below are this week's finalist articles with full summaries.
+You are the editor of "The Context Window", a daily AI briefing for ML engineers and tech executives.
+Below are the past 7 days' finalist articles with full summaries.
 
 Select the 5 best for publication and rank them 1 (top) to 5.
 
@@ -75,8 +75,8 @@ Return ONLY a JSON array: [{"id": <int>, "rank": <int>, "topic": "<2-3 word topi
 No markdown fences, no extra text."""
 
 _COMPARATIVE_VIDEO_PROMPT = """\
-You are the editor of "The Context Window", a weekly AI newsletter for ML engineers and tech executives.
-Below are this week's finalist videos with descriptions, metadata, and transcript excerpts (when available).
+You are the editor of "The Context Window", a daily AI briefing for ML engineers and tech executives.
+Below are the past 7 days' finalist videos with descriptions, metadata, and transcript excerpts (when available).
 
 Select the 3 best for publication and rank them 1 (top) to 3.
 
@@ -106,7 +106,7 @@ You will receive a JSON array of videos with title, channel, description, and op
 
 Classify each into exactly ONE of these types:
 - "deep_analysis": in-depth technical breakdown, paper walkthrough, architecture deep-dive
-- "news_roundup": weekly/daily AI news compilation covering multiple stories
+- "news_roundup": daily AI news compilation covering multiple stories
 - "demo": product demo, hands-on walkthrough, showing a tool/model in action
 - "tutorial": how-to, educational, step-by-step learning content
 - "reaction": commentary/reaction to someone else's work, hot takes
@@ -292,7 +292,7 @@ def quick_rank_videos(candidates: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def comparative_select_stories(candidates: list[dict]) -> list[dict]:
-    """Weekly comparative ranking with full summaries. Returns [{id, rank, topic}]."""
+    """Comparative ranking with full summaries. Returns [{id, rank, topic}]."""
     if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY not set — picking by importance_score")
         by_score = sorted(candidates, key=lambda c: c.get("importance_score", 0), reverse=True)
@@ -308,7 +308,7 @@ def comparative_select_stories(candidates: list[dict]) -> list[dict]:
 
 
 def comparative_select_videos(candidates: list[dict]) -> list[dict]:
-    """Weekly comparative ranking for videos. Returns [{id, rank, topic}]."""
+    """Comparative ranking for videos. Returns [{id, rank, topic}]."""
     if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY not set — picking by importance_score")
         by_score = sorted(candidates, key=lambda c: c.get("importance_score", 0), reverse=True)
@@ -358,6 +358,6 @@ def tight_bullets(title: str, raw_content: str) -> list[str]:
 
 def generate_title(top_stories: list[dict]) -> str:
     if not OPENAI_API_KEY:
-        return "This Week in AI"
+        return "Today in AI"
     summaries = "\n".join(f"- {s['title']}" for s in top_stories)
     return _call_openai(_TITLE_SYSTEM_PROMPT, summaries)

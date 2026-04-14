@@ -12,7 +12,7 @@ export default function Masthead({ title, weekOf, issueNumber }: MastheadProps) 
       <div className="border-t border-rule mb-3" />
       <div className="flex items-center justify-between text-[11px] text-ink-light uppercase tracking-wider font-body max-w-4xl mx-auto mb-3">
         <span>{formatLongDate(weekOf)}</span>
-        <span>Weekly Edition</span>
+        <span>Latest Edition</span>
         {issueNumber != null && <span>No. {issueNumber}</span>}
       </div>
       <div className="border-t border-rule mb-4" />

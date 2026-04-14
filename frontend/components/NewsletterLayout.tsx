@@ -41,7 +41,7 @@ export default function NewsletterLayout({ issue, allIssueIds }: NewsletterLayou
         <main className="min-w-0">
           <div className="divider-label">
             <span className="text-[11px] text-ink-light uppercase tracking-[0.2em] font-body whitespace-nowrap font-semibold">
-              This Week&apos;s Stories
+              Top Stories
             </span>
           </div>
           {issue.stories.length > 0 ? (
@@ -75,8 +75,8 @@ export default function NewsletterLayout({ issue, allIssueIds }: NewsletterLayou
             The Context Window
           </p>
           <p className="text-xs text-ink-light mt-1 leading-relaxed">
-            Published weekly for researchers, engineers, and leaders navigating
-            the frontier of artificial intelligence.
+            Published daily&mdash;curating the past seven days for researchers,
+            engineers, and leaders navigating the frontier of artificial intelligence.
           </p>
           <div className="mt-3 border-t border-rule pt-3">
             <p className="text-[10px] text-ink-light uppercase tracking-widest">

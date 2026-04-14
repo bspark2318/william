@@ -42,8 +42,8 @@ describe("WeekNav", () => {
     expect(mockPush).toHaveBeenCalledWith("/?issue=5");
   });
 
-  it("always shows the 'Weekly Edition' label", () => {
+  it("always shows the 'Latest Edition' label", () => {
     render(<WeekNav />);
-    expect(screen.getByText(/weekly edition/i)).toBeInTheDocument();
+    expect(screen.getByText(/latest edition/i)).toBeInTheDocument();
   });
 });

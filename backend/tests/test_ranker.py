@@ -151,7 +151,7 @@ def test_classify_empty():
 
 def test_generate_title_fallback_without_api_key(monkeypatch):
     monkeypatch.setattr(ranker, "OPENAI_API_KEY", "")
-    assert ranker.generate_title([{"title": "Any"}]) == "This Week in AI"
+    assert ranker.generate_title([{"title": "Any"}]) == "Today in AI"
 
 
 def test_tight_bullets_fallback_without_api_key(monkeypatch):
