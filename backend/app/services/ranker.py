@@ -65,7 +65,8 @@ Below are the past 7 days' finalist articles with full summaries.
 Select the 5 best for publication and rank them 1 (top) to 5.
 
 Rules:
-- Pick AT MOST 2 stories on the same topic or event (diversity matters)
+- Pick AT MOST 1 story on the same narrow topic or event (diversity matters)
+- Aim to span different AI domains: model releases, safety/alignment, policy/regulation, research breakthroughs, business/funding, and applications — no single domain should dominate
 - Prefer primary sources and original reporting
 - If two stories cover the same event, keep only the better one
 - Reject anything that is a listicle, explainer, or opinion piece with no new facts
@@ -291,19 +292,33 @@ def quick_rank_videos(candidates: list[dict]) -> list[dict]:
 # Stage 2 public API — comparative finals
 # ---------------------------------------------------------------------------
 
-def comparative_select_stories(candidates: list[dict]) -> list[dict]:
-    """Comparative ranking with full summaries. Returns [{id, rank, topic}]."""
+def comparative_select_stories(
+    candidates: list[dict],
+    recent_story_titles: list[str] | None = None,
+) -> list[dict]:
+    """Comparative ranking with full summaries. Returns [{id, rank, topic}].
+
+    If recent_story_titles is provided, the LLM is told which topics were
+    already covered in recent issues so it can avoid semantic repetition.
+    """
     if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY not set — picking by importance_score")
         by_score = sorted(candidates, key=lambda c: c.get("importance_score", 0), reverse=True)
         return [{"id": c["id"], "rank": i + 1, "topic": "unknown"} for i, c in enumerate(by_score[:5])]
     if not candidates:
         return []
+    system = _COMPARATIVE_STORY_PROMPT
+    if recent_story_titles:
+        recent_block = "\n".join(f"- {t}" for t in recent_story_titles)
+        system += (
+            "\n\nTopics covered in recent issues — avoid repeating unless there is a "
+            "major distinct new development:\n" + recent_block
+        )
     payload = json.dumps([
         {"id": c["id"], "title": c["title"], "summary": c["summary"][:1500], "source": c["source"]}
         for c in candidates
     ])
-    raw = _call_openai(_COMPARATIVE_STORY_PROMPT, payload)
+    raw = _call_openai(system, payload)
     return _parse_json_array(raw, candidates[:5])
 
 

@@ -377,6 +377,48 @@ def _score_unscored(db: Session) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Finalist diversification
+# ---------------------------------------------------------------------------
+
+def _diversify_story_finalists(candidates: list, n: int) -> list:
+    """Pick up to `n` finalists with topic diversity.
+
+    Groups candidates by search_query and round-robins across groups
+    (each sorted by importance_score descending) so every query category
+    contributes to the finalist pool rather than one hot topic dominating.
+    """
+    from collections import defaultdict
+
+    groups: dict[str, list] = defaultdict(list)
+    for c in candidates:
+        key = c.search_query or "unknown"
+        groups[key].append(c)
+
+    for g in groups.values():
+        g.sort(key=lambda s: s.importance_score or 0, reverse=True)
+
+    # Lead with the group whose best story scored highest
+    ordered_groups = sorted(
+        groups.values(), key=lambda g: g[0].importance_score or 0, reverse=True
+    )
+
+    result: list = []
+    i = 0
+    while len(result) < n:
+        added_any = False
+        for group in ordered_groups:
+            if i < len(group):
+                result.append(group[i])
+                added_any = True
+                if len(result) >= n:
+                    break
+        if not added_any:
+            break
+        i += 1
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -473,7 +515,7 @@ def publish_issue(db: Session | None = None) -> dict:
 
         # --- Comparative finals: stories ---
         story_candidates.sort(key=lambda s: s.importance_score or 0, reverse=True)
-        finalists = story_candidates[:_STORY_FINALISTS]
+        finalists = _diversify_story_finalists(story_candidates, _STORY_FINALISTS)
         finalist_dicts = [
             {
                 "id": s.id,
@@ -485,8 +527,18 @@ def publish_issue(db: Session | None = None) -> dict:
             for s in finalists
         ]
 
+        # Fetch titles from the 2 most recently published issues so the LLM
+        # can semantically avoid repeating topics that just ran.
+        recent_issues = (
+            db.query(Issue)
+            .order_by(Issue.created_at.desc())
+            .limit(2)
+            .all()
+        )
+        recent_titles = [s.title for iss in recent_issues for s in iss.stories]
+
         try:
-            selections = comparative_select_stories(finalist_dicts)
+            selections = comparative_select_stories(finalist_dicts, recent_story_titles=recent_titles)
         except Exception:
             logger.exception("Comparative story selection failed — falling back to top by score")
             selections = [{"id": s.id, "rank": i + 1, "topic": "unknown"} for i, s in enumerate(finalists[:5])]
