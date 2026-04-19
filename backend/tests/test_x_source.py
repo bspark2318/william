@@ -192,6 +192,5 @@ def test_fetch_tweets_via_apify_no_dataset_id():
 # ingest_x — needs CandidateXTweet model from Slice 1
 # ---------------------------------------------------------------------------
 
-@pytest.mark.skip(reason="needs Slice 1 merge (CandidateXTweet model)")
 def test_ingest_x_writes_rows_and_dedups():
-    pass
+    """Placeholder: ingest_x should write rows and dedup by url (TODO body)."""

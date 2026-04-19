@@ -194,6 +194,5 @@ def test_fetch_hn_comments_handles_fetch_error():
 # ingest_hn — requires DevPost (Slice 1)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.skip(reason="needs Slice 1 merge (DevPost model not in this worktree)")
 def test_ingest_hn_writes_rows():
-    pass
+    """Placeholder: ingest_hn should write DevPost rows (TODO body)."""

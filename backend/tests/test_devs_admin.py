@@ -15,22 +15,12 @@ from unittest.mock import patch
 
 import pytest
 
-_REASON = "needs Slice 1/2 merge (devs ORM + pipeline)"
-
-try:
-    from app.models import (  # type: ignore  # noqa: F401
-        CandidateXTweet,
-        DevPost,
-        DiscoveredHandle,
-        XTopicDigestRow,
-    )
-    from app.routers import admin as admin_router_module  # noqa: F401
-
-    _ready = True
-except Exception:  # pragma: no cover
-    _ready = False
-
-pytestmark = pytest.mark.skipif(not _ready, reason=_REASON)
+from app.models import (
+    CandidateXTweet,
+    DevPost,
+    DiscoveredHandle,
+    XTopicDigestRow,
+)
 
 
 @pytest.fixture
@@ -127,6 +117,7 @@ def test_devs_handle_stats(client, db_session):
                 url="https://x.com/a/status/1",
                 author_handle="alpha",
                 text="t1",
+                published_at=now,
                 collected_at=now,
                 quality_score=7.0,
                 used_in_digest_id=1,
@@ -135,6 +126,7 @@ def test_devs_handle_stats(client, db_session):
                 url="https://x.com/a/status/2",
                 author_handle="alpha",
                 text="t2",
+                published_at=now,
                 collected_at=now,
                 quality_score=4.0,
                 used_in_digest_id=None,
@@ -143,6 +135,7 @@ def test_devs_handle_stats(client, db_session):
                 url="https://x.com/b/status/1",
                 author_handle="beta",
                 text="t3",
+                published_at=now,
                 collected_at=now,
                 quality_score=8.0,
                 used_in_digest_id=None,
@@ -335,6 +328,7 @@ def test_devs_budget_counts_last_30_days(client, db_session, monkeypatch):
                 url=f"https://x.com/x/status/{i}",
                 author_handle="x",
                 text="t",
+                published_at=now,
                 collected_at=now,
             )
             for i in range(3)
@@ -344,6 +338,7 @@ def test_devs_budget_counts_last_30_days(client, db_session, monkeypatch):
                 url="https://x.com/x/status/old",
                 author_handle="x",
                 text="old",
+                published_at=long_ago,
                 collected_at=long_ago,
             )
         ]

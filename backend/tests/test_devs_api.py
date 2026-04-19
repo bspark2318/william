@@ -12,19 +12,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-# Import guard — skip the whole module when Slice 1 isn't merged.
-_MODELS_MISSING_REASON = "needs Slice 1/2 merge (DevPost + XTopicDigestRow ORM models)"
-
-try:
-    from app.models import DevPost, XTopicDigestRow  # type: ignore  # noqa: F401
-    from app.routers import devs as devs_router  # noqa: F401
-    _slice1_ready = True
-except Exception:  # pragma: no cover - triggered when slice 1 missing
-    _slice1_ready = False
-
-pytestmark = pytest.mark.skipif(not _slice1_ready, reason=_MODELS_MISSING_REASON)
-
-
 @pytest.fixture
 def devs_client():
     from app.routers import devs

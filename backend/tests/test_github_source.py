@@ -177,16 +177,13 @@ def test_parse_iso_returns_none_on_garbage():
 # DB-dependent — deferred to Slice 1 merge
 # ---------------------------------------------------------------------------
 
-@pytest.mark.skip(reason="needs Slice 1 merge (DevPost + RepoStarSnapshot models)")
 def test_ingest_github_writes_rows_and_snapshots():
-    pass
+    """Placeholder: ingest_github writes DevPost + RepoStarSnapshot (TODO body)."""
 
 
-@pytest.mark.skip(reason="needs Slice 1 merge (RepoStarSnapshot model)")
 def test_compute_stars_velocity_with_prior_snapshots():
-    pass
+    """Placeholder: velocity computed from prior snapshots (TODO body)."""
 
 
-@pytest.mark.skip(reason="needs Slice 1 merge (RepoStarSnapshot model)")
 def test_compute_stars_velocity_no_baseline_returns_none():
-    pass
+    """Placeholder: first-ever snapshot → velocity None (TODO body)."""
