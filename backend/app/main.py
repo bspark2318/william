@@ -13,22 +13,8 @@ from .routers.admin import router as admin_router
 from .scheduler import start_scheduler, stop_scheduler
 from .services.pipeline import collect_candidates, publish_issue
 
-# Slice 1/2 symbols — defensively imported so this module still loads when
-# those slices haven't landed yet.
-try:
-    from .models import DevPost, XTopicDigestRow  # type: ignore
-    from .services.devs_pipeline import (  # type: ignore
-        collect_dev_candidates,
-        publish_dev_feed,
-    )
-
-    _DEVS_READY = True
-except ImportError:  # pragma: no cover - resolved at merge time
-    DevPost = None  # type: ignore
-    XTopicDigestRow = None  # type: ignore
-    collect_dev_candidates = None  # type: ignore
-    publish_dev_feed = None  # type: ignore
-    _DEVS_READY = False
+from .models import DevPost, XTopicDigestRow
+from .services.devs_pipeline import collect_dev_candidates, publish_dev_feed
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +39,6 @@ def _bootstrap_if_empty() -> None:
 
 def _bootstrap_devs_if_empty() -> None:
     """Run devs collect + publish on first start when both devs tables are empty."""
-    if not _DEVS_READY:
-        return
     db = SessionLocal()
     try:
         has_dev_posts = db.query(DevPost).first() is not None

@@ -16,29 +16,13 @@ from ..models import CandidateStory, CandidateVideo
 from ..schemas import CandidateStoryOut, CandidateVideoOut
 from ..services.pipeline import collect_candidates, publish_issue
 
-# Slice 1/2 symbols — imported defensively so the module still loads when
-# those slices haven't been merged yet (e.g. in the slice-3 worktree CI).
-try:
-    from ..models import (  # type: ignore
-        CandidateXTweet,
-        DevPost,
-        DiscoveredHandle,
-        XTopicDigestRow,
-    )
-except ImportError:  # pragma: no cover - resolved at merge time
-    CandidateXTweet = None  # type: ignore
-    DevPost = None  # type: ignore
-    DiscoveredHandle = None  # type: ignore
-    XTopicDigestRow = None  # type: ignore
-
-try:
-    from ..services.devs_pipeline import (  # type: ignore
-        collect_dev_candidates,
-        publish_dev_feed,
-    )
-except ImportError:  # pragma: no cover
-    collect_dev_candidates = None  # type: ignore
-    publish_dev_feed = None  # type: ignore
+from ..models import (
+    CandidateXTweet,
+    DevPost,
+    DiscoveredHandle,
+    XTopicDigestRow,
+)
+from ..services.devs_pipeline import collect_dev_candidates, publish_dev_feed
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

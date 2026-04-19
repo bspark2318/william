@@ -26,10 +26,7 @@ try:  # pragma: no cover — real fetch path
 except Exception:  # pragma: no cover
     httpx = None  # type: ignore
 
-try:  # Slice 1 adds these models; helpers under test don't need them.
-    from ..models import DevPost, RepoStarSnapshot
-except ImportError:  # pragma: no cover
-    DevPost = RepoStarSnapshot = None  # type: ignore
+from ..models import DevPost, RepoStarSnapshot
 
 logger = logging.getLogger(__name__)
 

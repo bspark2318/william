@@ -20,10 +20,7 @@ try:  # pragma: no cover — tests monkeypatch ApifyClient
 except Exception:  # pragma: no cover
     ApifyClient = None  # type: ignore
 
-try:  # Slice 1 adds this model; source-only tests don't need it.
-    from ..models import CandidateXTweet
-except ImportError:  # pragma: no cover
-    CandidateXTweet = None  # type: ignore
+from ..models import CandidateXTweet
 
 logger = logging.getLogger(__name__)
 

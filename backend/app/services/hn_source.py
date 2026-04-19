@@ -21,10 +21,7 @@ try:  # pragma: no cover — exercised via tests only after Slice 1 merge
 except Exception:  # pragma: no cover
     httpx = None  # type: ignore
 
-try:  # Slice 1 adds this model; source-only tests don't need it.
-    from ..models import DevPost
-except ImportError:  # pragma: no cover
-    DevPost = None  # type: ignore
+from ..models import DevPost
 
 logger = logging.getLogger(__name__)
 

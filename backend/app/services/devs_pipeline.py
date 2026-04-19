@@ -22,15 +22,12 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 
-try:  # Slice 1 adds these; optional import keeps this module usable in tests.
-    from ..models import (
-        CandidateXTweet,
-        DevPost,
-        RepoStarSnapshot,
-        XTopicDigestRow,
-    )
-except ImportError:  # pragma: no cover
-    CandidateXTweet = DevPost = RepoStarSnapshot = XTopicDigestRow = None  # type: ignore
+from ..models import (
+    CandidateXTweet,
+    DevPost,
+    RepoStarSnapshot,
+    XTopicDigestRow,
+)
 
 from . import devs_ranker
 from .github_source import compute_stars_velocity_7d, ingest_github

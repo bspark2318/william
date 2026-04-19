@@ -8,22 +8,14 @@ from .config import COLLECT_HOUR, PUBLISH_HOUR
 from .database import SessionLocal
 from .services.pipeline import collect_candidates, publish_issue, purge_old_data
 
-# Slice 2 pipeline entrypoints — defensively imported so this module still
-# loads if slice 2 hasn't merged yet.
-try:
-    from .services.devs_pipeline import (  # type: ignore
-        collect_dev_candidates,
-        publish_dev_feed,
-    )
-except ImportError:  # pragma: no cover - resolved at merge time
-    collect_dev_candidates = None  # type: ignore
-    publish_dev_feed = None  # type: ignore
+from .services.devs_pipeline import collect_dev_candidates, publish_dev_feed
 
+# Weekly X handle discovery entrypoint. Slice 2 did not implement this;
+# the weekly job is wired but will no-op with a warning until an entrypoint
+# lands. Flagged to the user in the harmonization report.
 try:
-    # Slice 2 provides the weekly discovery entrypoint — name is not locked in the
-    # shared contract, so import defensively to avoid import-time failures.
     from .services.devs_pipeline import discover_x_handles  # type: ignore
-except ImportError:  # pragma: no cover - depends on slice 2 merge
+except ImportError:  # pragma: no cover - discovery entrypoint not yet implemented
     discover_x_handles = None  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -32,9 +24,6 @@ _scheduler: BackgroundScheduler | None = None
 
 
 def _run_devs_collect() -> None:
-    if collect_dev_candidates is None:
-        logger.warning("devs_collect: collect_dev_candidates not available; skipping")
-        return
     db = SessionLocal()
     try:
         collect_dev_candidates(db)
@@ -45,9 +34,6 @@ def _run_devs_collect() -> None:
 
 
 def _run_devs_publish() -> None:
-    if publish_dev_feed is None:
-        logger.warning("devs_publish: publish_dev_feed not available; skipping")
-        return
     db = SessionLocal()
     try:
         publish_dev_feed(db)
