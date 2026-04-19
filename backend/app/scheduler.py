@@ -5,11 +5,69 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from .config import COLLECT_HOUR, PUBLISH_HOUR
+from .database import SessionLocal
 from .services.pipeline import collect_candidates, publish_issue, purge_old_data
+
+# Slice 2 pipeline entrypoints — defensively imported so this module still
+# loads if slice 2 hasn't merged yet.
+try:
+    from .services.devs_pipeline import (  # type: ignore
+        collect_dev_candidates,
+        publish_dev_feed,
+    )
+except ImportError:  # pragma: no cover - resolved at merge time
+    collect_dev_candidates = None  # type: ignore
+    publish_dev_feed = None  # type: ignore
+
+try:
+    # Slice 2 provides the weekly discovery entrypoint — name is not locked in the
+    # shared contract, so import defensively to avoid import-time failures.
+    from .services.devs_pipeline import discover_x_handles  # type: ignore
+except ImportError:  # pragma: no cover - depends on slice 2 merge
+    discover_x_handles = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
+
+
+def _run_devs_collect() -> None:
+    if collect_dev_candidates is None:
+        logger.warning("devs_collect: collect_dev_candidates not available; skipping")
+        return
+    db = SessionLocal()
+    try:
+        collect_dev_candidates(db)
+    except Exception:
+        logger.exception("devs_collect job failed")
+    finally:
+        db.close()
+
+
+def _run_devs_publish() -> None:
+    if publish_dev_feed is None:
+        logger.warning("devs_publish: publish_dev_feed not available; skipping")
+        return
+    db = SessionLocal()
+    try:
+        publish_dev_feed(db)
+    except Exception:
+        logger.exception("devs_publish job failed")
+    finally:
+        db.close()
+
+
+def _run_devs_handle_discovery() -> None:
+    if discover_x_handles is None:
+        logger.warning("devs_handle_discovery: discover_x_handles not available; skipping")
+        return
+    db = SessionLocal()
+    try:
+        discover_x_handles(db)
+    except Exception:
+        logger.exception("devs_handle_discovery job failed")
+    finally:
+        db.close()
 
 
 def start_scheduler():
@@ -40,12 +98,40 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    _scheduler.add_job(
+        _run_devs_collect,
+        trigger=CronTrigger(hour=COLLECT_HOUR, minute=5, timezone=pytz.utc),
+        id="devs_collect",
+        name="Daily devs feed collection (HN + GitHub + X)",
+        replace_existing=True,
+    )
+
+    _scheduler.add_job(
+        _run_devs_publish,
+        trigger=CronTrigger(hour=PUBLISH_HOUR, minute=5, timezone=pytz.utc),
+        id="devs_publish",
+        name="Daily devs feed publish orchestrator",
+        replace_existing=True,
+    )
+
+    _scheduler.add_job(
+        _run_devs_handle_discovery,
+        trigger=CronTrigger(day_of_week="sun", hour=2, minute=0, timezone=pytz.utc),
+        id="devs_handle_discovery",
+        name="Weekly X handle discovery (Sun 02:00 UTC)",
+        replace_existing=True,
+    )
+
     _scheduler.start()
     logger.info(
-        "Scheduler started — collect daily at %02d:00 UTC, publish daily at %02d:00 UTC, purge daily at %02d:30 UTC",
+        "Scheduler started — collect daily at %02d:00 UTC, publish daily at %02d:00 UTC, "
+        "purge daily at %02d:30 UTC, devs_collect %02d:05, devs_publish %02d:05, "
+        "devs_handle_discovery Sundays 02:00",
         COLLECT_HOUR,
         PUBLISH_HOUR,
         COLLECT_HOUR,
+        COLLECT_HOUR,
+        PUBLISH_HOUR,
     )
 
 
