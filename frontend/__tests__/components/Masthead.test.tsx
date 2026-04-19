@@ -37,4 +37,10 @@ describe("Masthead", () => {
     render(<Masthead weekOf="2026-04-07" />);
     expect(screen.getByText(/Latest Edition/)).toBeInTheDocument();
   });
+
+  it("links to /devs via the For Developers nav link", () => {
+    render(<Masthead weekOf="2026-04-07" />);
+    const link = screen.getByRole("link", { name: /For Developers/i });
+    expect(link).toHaveAttribute("href", "/devs");
+  });
 });

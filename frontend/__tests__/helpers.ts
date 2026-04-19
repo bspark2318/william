@@ -1,4 +1,5 @@
 import { Story, FeaturedVideo, Issue } from "@/lib/types";
+import { XTopicDigest, HNPost, GitHubPost } from "@/lib/devs/types";
 
 export function makeStory(overrides: Partial<Story> = {}): Story {
   return {
@@ -32,6 +33,57 @@ export function makeIssue(overrides: Partial<Issue> = {}): Issue {
     edition: 1,
     stories: [makeStory()],
     featured_videos: [],
+    ...overrides,
+  };
+}
+
+export function makeXTopicDigest(
+  overrides: Partial<XTopicDigest> = {},
+): XTopicDigest {
+  return {
+    id: 1,
+    source: "x",
+    display_order: 1,
+    topic: "evals",
+    bullets: [
+      {
+        text: "A sample bullet on evals.",
+        sources: [
+          { url: "https://x.com/testuser/status/1", author_handle: "testuser" },
+        ],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+export function makeHNPost(overrides: Partial<HNPost> = {}): HNPost {
+  return {
+    id: 2,
+    source: "hn",
+    url: "https://example.com/article",
+    hn_url: "https://news.ycombinator.com/item?id=1",
+    published_at: "2026-04-18",
+    display_order: 2,
+    title: "A practical essay on LLM workflows",
+    points: 250,
+    comments: 80,
+    ...overrides,
+  };
+}
+
+export function makeGitHubPost(overrides: Partial<GitHubPost> = {}): GitHubPost {
+  return {
+    id: 3,
+    source: "github",
+    url: "https://github.com/test/repo",
+    published_at: "2026-04-18",
+    display_order: 3,
+    repo: "test/repo",
+    title: "v1.2.0",
+    version: "v1.2.0",
+    stars: 1500,
+    stars_velocity_7d: 120,
     ...overrides,
   };
 }

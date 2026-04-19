@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatLongDate } from "@/lib/dates";
 
 interface MastheadProps {
@@ -9,6 +10,15 @@ interface MastheadProps {
 export default function Masthead({ title, weekOf, issueNumber }: MastheadProps) {
   return (
     <header className="text-center pt-6 pb-4 border-b-2 border-ink mb-4">
+      <div className="flex justify-end max-w-4xl mx-auto mb-2">
+        <Link
+          href="/devs"
+          prefetch
+          className="text-[10px] text-accent uppercase tracking-wider font-body hover:underline"
+        >
+          For Developers &rarr;
+        </Link>
+      </div>
       <div className="border-t border-rule mb-3" />
       <div className="flex items-center justify-between text-[11px] text-ink-light uppercase tracking-wider font-body max-w-4xl mx-auto mb-3">
         <span>{formatLongDate(weekOf)}</span>
