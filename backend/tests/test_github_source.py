@@ -169,3 +169,117 @@ def test_parse_iso_handles_z_suffix():
 def test_parse_iso_returns_none_on_garbage():
     assert github_source._parse_iso("not-a-date") is None
     assert github_source._parse_iso(None) is None
+
+
+# ---------------------------------------------------------------------------
+# ingest_github + compute_stars_velocity_7d — DB integration
+# ---------------------------------------------------------------------------
+
+
+def test_ingest_github_writes_rows_and_snapshots(db_session, monkeypatch):
+    from app.models import DevPost, RepoStarSnapshot
+
+    now = datetime.now(timezone.utc)
+
+    monkeypatch.setattr(
+        github_source,
+        "_load_config",
+        lambda: {"github_languages": ["Rust"], "github_curated_repos": ["acme/widget"]},
+    )
+    monkeypatch.setattr(
+        github_source,
+        "fetch_trending",
+        lambda langs, *, token=None, client=None, today=None: [
+            {
+                "kind": "trending",
+                "repo": "acme/widget",
+                "url": "https://github.com/acme/widget",
+                "title": "widget",
+                "stars": 1500,
+                "published_at": now,
+                "language": "Rust",
+                "topics": ["rust"],
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        github_source,
+        "fetch_releases",
+        lambda repos, *, token=None, client=None, today=None: [
+            {
+                "kind": "release",
+                "repo": "acme/widget",
+                "url": "https://github.com/acme/widget/releases/tag/v1",
+                "title": "widget v1",
+                "version": "v1",
+                "release_notes": "new feature",
+                "stars": 1500,
+                "published_at": now,
+                "topics": ["rust"],
+            }
+        ],
+    )
+
+    added = github_source.ingest_github(db_session)
+    assert added == 2
+
+    rows = db_session.query(DevPost).filter_by(source="github").all()
+    assert len(rows) == 2
+    kinds = {r.url: r for r in rows}
+    release = kinds["https://github.com/acme/widget/releases/tag/v1"]
+    assert release.version == "v1"
+    assert release.release_notes_excerpt == "new feature"
+
+    # One snapshot per touched repo, regardless of trending+release split.
+    snaps = db_session.query(RepoStarSnapshot).filter_by(repo="acme/widget").all()
+    assert len(snaps) == 1
+    assert snaps[0].stars == 1500
+
+    # Rerun: URLs dedup → 0 new DevPost rows. Snapshots are append-only by design.
+    added = github_source.ingest_github(db_session)
+    assert added == 0
+    assert db_session.query(DevPost).filter_by(source="github").count() == 2
+
+
+def test_compute_stars_velocity_with_prior_snapshots(db_session):
+    from app.models import RepoStarSnapshot
+
+    now = datetime.now(timezone.utc)
+    db_session.add_all(
+        [
+            RepoStarSnapshot(
+                repo="a/b", stars=500, observed_at=now - timedelta(days=10)
+            ),
+            RepoStarSnapshot(
+                repo="a/b", stars=700, observed_at=now - timedelta(days=8)
+            ),
+            RepoStarSnapshot(
+                repo="a/b", stars=900, observed_at=now - timedelta(minutes=1)
+            ),
+        ]
+    )
+    db_session.commit()
+
+    # Baseline = most recent snapshot at least 7 days old (700).
+    # Latest = 900. Δ = 200.
+    vel = github_source.compute_stars_velocity_7d(db_session, "a/b", now=now)
+    assert vel == 200
+
+
+def test_compute_stars_velocity_no_baseline_returns_none(db_session):
+    from app.models import RepoStarSnapshot
+
+    now = datetime.now(timezone.utc)
+    # Only a recent snapshot — no baseline ≥7 days old.
+    db_session.add(
+        RepoStarSnapshot(repo="a/b", stars=100, observed_at=now - timedelta(days=2))
+    )
+    db_session.commit()
+
+    assert github_source.compute_stars_velocity_7d(db_session, "a/b", now=now) is None
+
+    # No snapshots at all → also None.
+    assert (
+        github_source.compute_stars_velocity_7d(db_session, "never/seen", now=now)
+        is None
+    )

@@ -186,3 +186,55 @@ def test_fetch_hn_comments_handles_fetch_error():
         {hn_source._ITEM_URL.format(item_id=100): RuntimeError("nope")}
     )
     assert hn_source.fetch_hn_comments(100, client=client) == []
+
+
+# ---------------------------------------------------------------------------
+# ingest_hn — DB integration
+# ---------------------------------------------------------------------------
+
+
+def test_ingest_hn_writes_rows_and_dedups(db_session, monkeypatch):
+    from app.models import DevPost
+
+    now = datetime.now(timezone.utc)
+    candidates = [
+        {
+            "hn_id": 1,
+            "title": "MCP patterns",
+            "url": "https://example.com/1",
+            "hn_url": "https://news.ycombinator.com/item?id=1",
+            "points": 100,
+            "comments": 20,
+            "published_at": now,
+        },
+        {
+            "hn_id": 2,
+            "title": "Claude Code tips",
+            "url": "https://example.com/2",
+            "hn_url": "https://news.ycombinator.com/item?id=2",
+            "points": 50,
+            "comments": 10,
+            "published_at": now,
+        },
+    ]
+    monkeypatch.setattr(
+        hn_source,
+        "fetch_hn_candidates",
+        lambda *, limit=200, client=None: candidates,
+    )
+
+    added = hn_source.ingest_hn(db_session)
+    assert added == 2
+
+    rows = db_session.query(DevPost).filter_by(source="hn").all()
+    assert len(rows) == 2
+    # ingest_hn leaves scoring to the pipeline layer.
+    assert all(r.importance_score is None for r in rows)
+    assert all(r.is_active is False for r in rows)
+    urls = {r.url for r in rows}
+    assert urls == {"https://example.com/1", "https://example.com/2"}
+
+    # Rerun with the same URLs must dedup.
+    added = hn_source.ingest_hn(db_session)
+    assert added == 0
+    assert db_session.query(DevPost).filter_by(source="hn").count() == 2

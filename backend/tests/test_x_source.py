@@ -184,3 +184,45 @@ def test_fetch_tweets_via_apify_no_dataset_id():
 
     out = x_source.fetch_tweets_via_apify(["a"], token="t", client=NoDS())
     assert out == []
+
+
+# ---------------------------------------------------------------------------
+# ingest_x — DB integration
+# ---------------------------------------------------------------------------
+
+
+def test_ingest_x_writes_rows_and_dedups(db_session, monkeypatch):
+    from app.models import CandidateXTweet
+
+    monkeypatch.setattr(x_source, "_flatten_handles", lambda cfg: ["karpathy"])
+
+    now = datetime(2026, 4, 15, 12, 0, tzinfo=timezone.utc)
+    tweet = {
+        "url": "https://twitter.com/karpathy/status/1",
+        "author_handle": "karpathy",
+        "author_name": "Andrej",
+        "author_avatar_url": None,
+        "text": "hello",
+        "likes": 100,
+        "reposts": 20,
+        "replies": 5,
+        "published_at": now,
+    }
+    monkeypatch.setattr(
+        x_source, "fetch_tweets_via_apify", lambda handles, **kw: [tweet]
+    )
+
+    added = x_source.ingest_x(db_session, token="fake")
+    assert added == 1
+
+    rows = db_session.query(CandidateXTweet).all()
+    assert len(rows) == 1
+    assert rows[0].author_handle == "karpathy"
+    assert rows[0].likes == 100
+    # Scoring happens at the pipeline layer, not ingest.
+    assert rows[0].quality_score is None
+
+    # Rerun: same URL → dedup.
+    added = x_source.ingest_x(db_session, token="fake")
+    assert added == 0
+    assert db_session.query(CandidateXTweet).count() == 1

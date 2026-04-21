@@ -248,5 +248,10 @@ def test_admin_collect_trigger_invokes_pipeline_orchestrator(db_session, monkeyp
         r = tc.post("/api/admin/devs/collect")
 
     assert r.status_code == 200
-    assert r.json() == {"hn": 1, "github": 2, "x": 3}
+    assert r.json() == {
+        "status": "ok",
+        "stories_added": 3,
+        "videos_added": 0,
+        "tweets_added": 3,
+    }
     assert called_with["db_type"] == "Session"

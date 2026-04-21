@@ -20,7 +20,6 @@ from ..models import (
     CandidateXTweet,
     DevPost,
     DiscoveredHandle,
-    XTopicDigestRow,
 )
 from ..services.devs_pipeline import collect_dev_candidates, publish_dev_feed
 
@@ -92,16 +91,35 @@ def _count_x_handles(cfg: dict) -> int:
 
 @router.post("/devs/collect")
 def trigger_devs_collect(db: Session = Depends(get_db)):
-    return collect_dev_candidates(db)
+    result = collect_dev_candidates(db) or {}
+    hn = int(result.get("hn", 0) or 0)
+    github = int(result.get("github", 0) or 0)
+    x = int(result.get("x", 0) or 0)
+    return {
+        "status": "ok",
+        "stories_added": hn + github,
+        "videos_added": 0,
+        "tweets_added": x,
+    }
 
 
 @router.post("/devs/publish")
 def trigger_devs_publish(db: Session = Depends(get_db)):
-    return publish_dev_feed(db)
+    result = publish_dev_feed(db) or {}
+    hn = int(result.get("hn_published", 0) or 0)
+    github = int(result.get("github_published", 0) or 0)
+    x = int(result.get("x_published", 0) or 0)
+    feed_size = hn + github + x
+    return {
+        "status": "published" if feed_size > 0 else "skipped",
+        "feed_size": feed_size,
+        "digest_title": "Developer briefing",
+    }
 
 
 @router.get("/devs/candidates")
 def list_devs_candidates(db: Session = Depends(get_db)):
+    """Flat candidate list for the admin inspector — hn/github posts + x tweets."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=_DEVS_CANDIDATE_LOOKBACK_DAYS)
     dev_posts = (
         db.query(DevPost)
@@ -115,77 +133,45 @@ def list_devs_candidates(db: Session = Depends(get_db)):
         .order_by(CandidateXTweet.collected_at.desc())
         .all()
     )
-    x_digests = (
-        db.query(XTopicDigestRow)
-        .order_by(XTopicDigestRow.created_at.desc())
-        .limit(50)
-        .all()
-    )
 
-    def _dev_to_dict(r: DevPost) -> dict:
-        return {
+    out: list[dict] = []
+    for r in dev_posts:
+        out.append({
             "id": r.id,
             "source": r.source,
-            "url": r.url,
             "title": r.title,
-            "published_at": r.published_at.isoformat() if r.published_at else None,
-            "collected_at": r.collected_at.isoformat() if r.collected_at else None,
+            "text": None,
+            "url": r.url,
             "importance_score": r.importance_score,
             "rank_score": r.rank_score,
             "rank_features": r.rank_features,
-            "topics": r.topics,
-            "is_active": r.is_active,
-            "display_order": r.display_order,
-            "repo": r.repo,
-            "version": r.version,
-            "stars": r.stars,
-            "stars_velocity_7d": r.stars_velocity_7d,
-            "points": r.points,
-            "comments": r.comments,
-        }
-
-    def _tweet_to_dict(r: CandidateXTweet) -> dict:
-        return {
-            "id": r.id,
-            "url": r.url,
-            "author_handle": r.author_handle,
-            "author_name": r.author_name,
-            "text": r.text,
-            "likes": r.likes,
-            "reposts": r.reposts,
-            "replies": r.replies,
-            "quality_score": r.quality_score,
-            "topic_cluster": r.topic_cluster,
-            "used_in_digest_id": r.used_in_digest_id,
-            "published_at": r.published_at.isoformat() if r.published_at else None,
             "collected_at": r.collected_at.isoformat() if r.collected_at else None,
-        }
-
-    def _digest_to_dict(r: XTopicDigestRow) -> dict:
-        return {
-            "id": r.id,
-            "topic": r.topic,
-            "bullets": r.bullets,
-            "rank_score": r.rank_score,
-            "is_active": r.is_active,
+            "is_active": bool(r.is_active),
             "display_order": r.display_order,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        }
-
-    return {
-        "dev_posts": [_dev_to_dict(r) for r in dev_posts],
-        "candidate_x_tweets": [_tweet_to_dict(r) for r in x_tweets],
-        "x_topic_digests": [_digest_to_dict(r) for r in x_digests],
-    }
+        })
+    for r in x_tweets:
+        out.append({
+            "id": r.id,
+            "source": "x",
+            "title": None,
+            "text": r.text,
+            "url": r.url,
+            "importance_score": None,
+            "rank_score": r.quality_score,
+            "rank_features": None,
+            "collected_at": r.collected_at.isoformat() if r.collected_at else None,
+            "is_active": r.used_in_digest_id is not None,
+            "display_order": None,
+        })
+    out.sort(key=lambda c: c["collected_at"] or "", reverse=True)
+    return out
 
 
 @router.get("/devs/handle-stats")
 def devs_handle_stats(db: Session = Depends(get_db)):
-    """Per-X-handle 30-day productivity — tweets collected, above-bar, used, last used."""
+    """Per-X-handle 30-day productivity — tweets collected, above-bar, published, last published."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
 
-    # Python-side aggregation keeps behavior consistent across dialects
-    # (SQLite JSON/Boolean casts are finicky inside func.sum).
     tweets = (
         db.query(CandidateXTweet)
         .filter(CandidateXTweet.collected_at >= cutoff)
@@ -197,24 +183,24 @@ def devs_handle_stats(db: Session = Depends(get_db)):
             t.author_handle,
             {
                 "handle": t.author_handle,
-                "tweets_collected": 0,
-                "tweets_above_6": 0,
-                "tweets_used_in_digest": 0,
-                "last_used_at": None,
+                "tweets_collected_30d": 0,
+                "tweets_scored_above_6_30d": 0,
+                "tweets_published_30d": 0,
+                "last_published_at": None,
             },
         )
-        h["tweets_collected"] += 1
+        h["tweets_collected_30d"] += 1
         if (t.quality_score or 0) > 6.0:
-            h["tweets_above_6"] += 1
+            h["tweets_scored_above_6_30d"] += 1
         if t.used_in_digest_id is not None:
-            h["tweets_used_in_digest"] += 1
+            h["tweets_published_30d"] += 1
             iso = t.collected_at.isoformat() if t.collected_at else None
-            if iso and (h["last_used_at"] is None or iso > h["last_used_at"]):
-                h["last_used_at"] = iso
+            if iso and (h["last_published_at"] is None or iso > h["last_published_at"]):
+                h["last_published_at"] = iso
 
     result = list(by_handle.values())
-    result.sort(key=lambda r: r["tweets_used_in_digest"])
-    return {"handles": result}
+    result.sort(key=lambda r: r["tweets_published_30d"])
+    return result
 
 
 @router.get("/devs/discovered-handles")
@@ -227,20 +213,17 @@ def list_discovered_handles(
         .order_by(DiscoveredHandle.seed_engagement_count.desc())
         .all()
     )
-    return {
-        "handles": [
-            {
-                "id": r.id,
-                "handle": r.handle,
-                "status": r.status,
-                "first_seen_at": r.first_seen_at.isoformat() if r.first_seen_at else None,
-                "last_seen_at": r.last_seen_at.isoformat() if r.last_seen_at else None,
-                "seed_engagement_count": r.seed_engagement_count,
-                "seed_handles": r.seed_handles,
-            }
-            for r in rows
-        ]
-    }
+    return [
+        {
+            "handle": r.handle,
+            "status": r.status,
+            "first_seen_at": r.first_seen_at.isoformat() if r.first_seen_at else None,
+            "last_seen_at": r.last_seen_at.isoformat() if r.last_seen_at else None,
+            "seed_engagement_count": r.seed_engagement_count,
+            "seed_handles": r.seed_handles,
+        }
+        for r in rows
+    ]
 
 
 @router.post("/devs/discovered-handles/{handle}/add")
@@ -298,15 +281,19 @@ def ignore_discovered_handle(handle: str, db: Session = Depends(get_db)):
 def devs_budget(db: Session = Depends(get_db)):
     """Apify rolling 30-day tweet count vs monthly cap."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
-    tweets_30d = (
+    tweets_30d = int(
         db.query(func.count(CandidateXTweet.id))
         .filter(CandidateXTweet.collected_at >= cutoff)
         .scalar()
         or 0
     )
+    cap = APIFY_MONTHLY_TWEET_CAP
+    pct_used = (tweets_30d / cap * 100.0) if cap > 0 else 0.0
+    over_cap = tweets_30d >= cap
     return {
-        "tweets_last_30d": int(tweets_30d),
-        "monthly_cap": APIFY_MONTHLY_TWEET_CAP,
-        "remaining": max(0, APIFY_MONTHLY_TWEET_CAP - int(tweets_30d)),
-        "over_cap": int(tweets_30d) >= APIFY_MONTHLY_TWEET_CAP,
+        "tweets_used_30d": tweets_30d,
+        "tweets_cap": cap,
+        "remaining": max(0, cap - tweets_30d),
+        "pct_used": round(pct_used, 2),
+        "will_pause_at": datetime.now(timezone.utc).isoformat() if over_cap else None,
     }

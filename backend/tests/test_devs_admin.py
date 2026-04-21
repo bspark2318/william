@@ -19,7 +19,6 @@ from app.models import (
     CandidateXTweet,
     DevPost,
     DiscoveredHandle,
-    XTopicDigestRow,
 )
 
 
@@ -38,26 +37,49 @@ def test_trigger_devs_collect(mock_collect, client):
     mock_collect.return_value = {"hn": 5, "github": 3, "x": 20}
     r = client.post("/api/admin/devs/collect")
     assert r.status_code == 200
-    assert r.json() == {"hn": 5, "github": 3, "x": 20}
+    assert r.json() == {
+        "status": "ok",
+        "stories_added": 8,
+        "videos_added": 0,
+        "tweets_added": 20,
+    }
     mock_collect.assert_called_once()
 
 
 @patch("app.routers.admin.publish_dev_feed")
 def test_trigger_devs_publish(mock_publish, client):
-    mock_publish.return_value = {"status": "published", "hn": 3, "github": 2, "x": 3}
+    mock_publish.return_value = {
+        "hn_published": 3,
+        "github_published": 2,
+        "x_published": 3,
+    }
     r = client.post("/api/admin/devs/publish")
     assert r.status_code == 200
-    assert r.json()["status"] == "published"
+    body = r.json()
+    assert body["status"] == "published"
+    assert body["feed_size"] == 8
+    assert body["digest_title"]
     mock_publish.assert_called_once()
+
+
+@patch("app.routers.admin.publish_dev_feed")
+def test_trigger_devs_publish_skipped_when_empty(mock_publish, client):
+    mock_publish.return_value = {
+        "hn_published": 0,
+        "github_published": 0,
+        "x_published": 0,
+    }
+    r = client.post("/api/admin/devs/publish")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "skipped"
+    assert body["feed_size"] == 0
 
 
 def test_devs_candidates_empty(client):
     r = client.get("/api/admin/devs/candidates")
     assert r.status_code == 200
-    data = r.json()
-    assert data["dev_posts"] == []
-    assert data["candidate_x_tweets"] == []
-    assert data["x_topic_digests"] == []
+    assert r.json() == []
 
 
 def test_devs_candidates_populated(client, db_session):
@@ -87,26 +109,29 @@ def test_devs_candidates_populated(client, db_session):
         topic_cluster=None,
         used_in_digest_id=None,
     )
-    digest = XTopicDigestRow(
-        topic="MCP",
-        bullets=[{"text": "hi", "sources": []}],
-        rank_score=7.0,
-        is_active=True,
-        display_order=6,
-        created_at=datetime.now(timezone.utc),
-    )
-    db_session.add_all([dev, tweet, digest])
+    db_session.add_all([dev, tweet])
     db_session.commit()
 
     r = client.get("/api/admin/devs/candidates")
     assert r.status_code == 200
-    data = r.json()
-    assert len(data["dev_posts"]) == 1
-    assert data["dev_posts"][0]["rank_features"] == {"heuristic": 0.7, "llm": 0.9}
-    assert len(data["candidate_x_tweets"]) == 1
-    assert data["candidate_x_tweets"][0]["author_handle"] == "foo"
-    assert len(data["x_topic_digests"]) == 1
-    assert data["x_topic_digests"][0]["topic"] == "MCP"
+    rows = r.json()
+    assert isinstance(rows, list)
+    assert len(rows) == 2
+
+    by_source = {row["source"]: row for row in rows}
+    assert set(by_source) == {"hn", "x"}
+
+    hn_row = by_source["hn"]
+    assert hn_row["title"] == "A coding agent appears"
+    assert hn_row["text"] is None
+    assert hn_row["rank_features"] == {"heuristic": 0.7, "llm": 0.9}
+    assert hn_row["is_active"] is False
+
+    x_row = by_source["x"]
+    assert x_row["title"] is None
+    assert x_row["text"] == "MCP is cool"
+    assert x_row["rank_score"] == 7.5
+    assert x_row["is_active"] is False  # used_in_digest_id is None
 
 
 def test_devs_handle_stats(client, db_session):
@@ -146,17 +171,18 @@ def test_devs_handle_stats(client, db_session):
 
     r = client.get("/api/admin/devs/handle-stats")
     assert r.status_code == 200
-    handles = r.json()["handles"]
+    handles = r.json()
+    assert isinstance(handles, list)
     by_handle = {h["handle"]: h for h in handles}
 
-    assert by_handle["alpha"]["tweets_collected"] == 2
-    assert by_handle["alpha"]["tweets_above_6"] == 1
-    assert by_handle["alpha"]["tweets_used_in_digest"] == 1
-    assert by_handle["beta"]["tweets_collected"] == 1
-    assert by_handle["beta"]["tweets_above_6"] == 1
-    assert by_handle["beta"]["tweets_used_in_digest"] == 0
+    assert by_handle["alpha"]["tweets_collected_30d"] == 2
+    assert by_handle["alpha"]["tweets_scored_above_6_30d"] == 1
+    assert by_handle["alpha"]["tweets_published_30d"] == 1
+    assert by_handle["beta"]["tweets_collected_30d"] == 1
+    assert by_handle["beta"]["tweets_scored_above_6_30d"] == 1
+    assert by_handle["beta"]["tweets_published_30d"] == 0
 
-    # Sorted ascending by tweets_used_in_digest (beta=0 before alpha=1).
+    # Sorted ascending by tweets_published_30d (beta=0 before alpha=1).
     assert handles[0]["handle"] == "beta"
 
 
@@ -186,9 +212,10 @@ def test_devs_discovered_handles_list_pending(client, db_session):
 
     r = client.get("/api/admin/devs/discovered-handles?status=pending")
     assert r.status_code == 200
-    data = r.json()
-    assert len(data["handles"]) == 1
-    assert data["handles"][0]["handle"] == "new_a"
+    handles = r.json()
+    assert isinstance(handles, list)
+    assert len(handles) == 1
+    assert handles[0]["handle"] == "new_a"
 
 
 def test_discovered_handle_add_writes_yaml_and_flips_status(
@@ -309,10 +336,11 @@ def test_devs_budget_empty(client):
     r = client.get("/api/admin/devs/budget")
     assert r.status_code == 200
     body = r.json()
-    assert body["tweets_last_30d"] == 0
-    assert body["monthly_cap"] >= 1
-    assert body["remaining"] == body["monthly_cap"]
-    assert body["over_cap"] is False
+    assert body["tweets_used_30d"] == 0
+    assert body["tweets_cap"] >= 1
+    assert body["remaining"] == body["tweets_cap"]
+    assert body["pct_used"] == 0.0
+    assert body["will_pause_at"] is None
 
 
 def test_devs_budget_counts_last_30_days(client, db_session, monkeypatch):
@@ -348,7 +376,8 @@ def test_devs_budget_counts_last_30_days(client, db_session, monkeypatch):
     r = client.get("/api/admin/devs/budget")
     assert r.status_code == 200
     body = r.json()
-    assert body["tweets_last_30d"] == 3
-    assert body["monthly_cap"] == 3
+    assert body["tweets_used_30d"] == 3
+    assert body["tweets_cap"] == 3
     assert body["remaining"] == 0
-    assert body["over_cap"] is True
+    assert body["pct_used"] == 100.0
+    assert body["will_pause_at"] is not None

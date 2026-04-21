@@ -301,6 +301,98 @@ def test_synthesize_digest_llm_success(monkeypatch):
     assert out[0]["sources"][0]["author_handle"] == "a"
 
 
+def test_synthesize_digest_drops_hallucinated_source_urls(monkeypatch):
+    monkeypatch.setattr(devs_ranker, "OPENAI_API_KEY", "fake")
+    monkeypatch.setattr(
+        devs_ranker,
+        "_call_openai",
+        lambda s, u, model="gpt-4o-mini": json.dumps(
+            [
+                {
+                    "text": "Valid bullet citing a real tweet.",
+                    "sources": [
+                        {
+                            "url": "https://twitter.com/a/status/1",
+                            "author_handle": "a",
+                            "author_name": "Alice",
+                        }
+                    ],
+                },
+                {
+                    "text": "Hallucinated bullet citing a fake url.",
+                    "sources": [
+                        {
+                            "url": "https://twitter.com/ghost/status/999",
+                            "author_handle": "ghost",
+                            "author_name": "Ghost",
+                        }
+                    ],
+                },
+            ]
+        ),
+    )
+    tweets = [
+        {
+            "id": 1,
+            "url": "https://twitter.com/a/status/1",
+            "author_handle": "a",
+            "author_name": "Alice",
+            "text": "MCP FTW",
+        }
+    ]
+    out = devs_ranker.synthesize_topic_digest("MCP", tweets)
+    assert len(out) == 1
+    assert out[0]["text"] == "Valid bullet citing a real tweet."
+    assert out[0]["sources"][0]["url"] == "https://twitter.com/a/status/1"
+
+
+def test_synthesize_digest_all_hallucinated_falls_back(monkeypatch):
+    monkeypatch.setattr(devs_ranker, "OPENAI_API_KEY", "fake")
+    monkeypatch.setattr(
+        devs_ranker,
+        "_call_openai",
+        lambda s, u, model="gpt-4o-mini": json.dumps(
+            [
+                {
+                    "text": "Fabricated 1",
+                    "sources": [
+                        {
+                            "url": "https://twitter.com/ghost/status/999",
+                            "author_handle": "ghost",
+                            "author_name": "Ghost",
+                        }
+                    ],
+                },
+                {
+                    "text": "Fabricated 2",
+                    "sources": [
+                        {
+                            "url": "https://twitter.com/nope/status/42",
+                            "author_handle": "nope",
+                            "author_name": "Nope",
+                        }
+                    ],
+                },
+            ]
+        ),
+    )
+    tweets = [
+        {
+            "id": 1,
+            "url": "https://twitter.com/a/status/1",
+            "author_handle": "a",
+            "author_name": "Alice",
+            "text": "MCP is great for agentic coding. You should try it.",
+        }
+    ]
+    out = devs_ranker.synthesize_topic_digest("MCP", tweets)
+    assert len(out) >= 1
+    for b in out:
+        assert len(b["sources"]) >= 1
+        for src in b["sources"]:
+            assert src["url"] == "https://twitter.com/a/status/1"
+
+
 def test_synthesize_digest_drops_bullets_without_sources(monkeypatch):
     monkeypatch.setattr(devs_ranker, "OPENAI_API_KEY", "fake")
     monkeypatch.setattr(

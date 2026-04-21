@@ -441,6 +441,8 @@ def synthesize_topic_digest(topic: str, tweets: list[dict]) -> list[dict]:
     if not tweets:
         return []
 
+    valid_urls = {url for t in tweets if (url := t.get("url"))}
+
     def _fallback() -> list[dict]:
         out: list[dict] = []
         for t in tweets[:3]:
@@ -501,6 +503,8 @@ def synthesize_topic_digest(topic: str, tweets: list[dict]) -> list[dict]:
                     url = str(s.get("url") or "").strip()
                     handle = str(s.get("author_handle") or "").strip().lstrip("@")
                     if not url or not handle:
+                        continue
+                    if url not in valid_urls:
                         continue
                     clean_sources.append(
                         {
