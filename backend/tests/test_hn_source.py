@@ -7,8 +7,6 @@ Tests `fetch_hn_candidates`/`fetch_hn_comments` directly (no DB) and the
 
 from datetime import datetime, timezone
 
-import pytest
-
 from app.services import hn_source
 
 
@@ -188,11 +186,3 @@ def test_fetch_hn_comments_handles_fetch_error():
         {hn_source._ITEM_URL.format(item_id=100): RuntimeError("nope")}
     )
     assert hn_source.fetch_hn_comments(100, client=client) == []
-
-
-# ---------------------------------------------------------------------------
-# ingest_hn — requires DevPost (Slice 1)
-# ---------------------------------------------------------------------------
-
-def test_ingest_hn_writes_rows():
-    """Placeholder: ingest_hn should write DevPost rows (TODO body)."""

@@ -5,8 +5,6 @@ Direct DB integration tests are skipped until Slice 1 merges CandidateXTweet.
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from app.services import x_source
 
 
@@ -186,11 +184,3 @@ def test_fetch_tweets_via_apify_no_dataset_id():
 
     out = x_source.fetch_tweets_via_apify(["a"], token="t", client=NoDS())
     assert out == []
-
-
-# ---------------------------------------------------------------------------
-# ingest_x — needs CandidateXTweet model from Slice 1
-# ---------------------------------------------------------------------------
-
-def test_ingest_x_writes_rows_and_dedups():
-    """Placeholder: ingest_x should write rows and dedup by url (TODO body)."""

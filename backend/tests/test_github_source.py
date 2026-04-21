@@ -6,8 +6,6 @@ need the Slice 1 ORM and are deferred (skip markers).
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from app.services import github_source
 
 
@@ -171,19 +169,3 @@ def test_parse_iso_handles_z_suffix():
 def test_parse_iso_returns_none_on_garbage():
     assert github_source._parse_iso("not-a-date") is None
     assert github_source._parse_iso(None) is None
-
-
-# ---------------------------------------------------------------------------
-# DB-dependent — deferred to Slice 1 merge
-# ---------------------------------------------------------------------------
-
-def test_ingest_github_writes_rows_and_snapshots():
-    """Placeholder: ingest_github writes DevPost + RepoStarSnapshot (TODO body)."""
-
-
-def test_compute_stars_velocity_with_prior_snapshots():
-    """Placeholder: velocity computed from prior snapshots (TODO body)."""
-
-
-def test_compute_stars_velocity_no_baseline_returns_none():
-    """Placeholder: first-ever snapshot → velocity None (TODO body)."""
