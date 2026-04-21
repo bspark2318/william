@@ -12,7 +12,9 @@ def _serialize_dev_post(row):
     """Serialize a DevPost ORM row into its discriminated Pydantic shape."""
     if row.source == "hn":
         return HNPostOut.model_validate(row)
-    return GitHubPostOut.model_validate(row)
+    if row.source == "github":
+        return GitHubPostOut.model_validate(row)
+    raise ValueError(f"unknown dev_post source {row.source!r} (id={row.id})")
 
 
 def _serialize_x_digest(row):

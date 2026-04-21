@@ -25,7 +25,7 @@ def test_rank_hn_post_llm_success(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda system, user, model="gpt-4o-mini": json.dumps(
+        lambda system, user, model="gpt-4o-mini", response_format=None: json.dumps(
             {"score": 8.5, "topics": ["mcp", "agents"]}
         ),
     )
@@ -38,7 +38,7 @@ def test_rank_hn_post_llm_success(monkeypatch):
 def test_rank_hn_post_llm_bad_json_falls_back(monkeypatch):
     monkeypatch.setattr(devs_ranker, "OPENAI_API_KEY", "fake")
     monkeypatch.setattr(
-        devs_ranker, "_call_openai", lambda system, user, model="gpt-4o-mini": "not json"
+        devs_ranker, "_call_openai", lambda system, user, model="gpt-4o-mini", response_format=None: "not json"
     )
     out = devs_ranker.rank_hn_post({"title": "x", "points": 10, "comments": 5})
     assert out["score"] > 0
@@ -61,7 +61,7 @@ def test_rank_github_post_llm_success(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda s, u, model="gpt-4o-mini": json.dumps({"score": 9.0, "topics": ["coding agents"]}),
+        lambda s, u, model="gpt-4o-mini", response_format=None: json.dumps({"score": 9.0, "topics": ["coding agents"]}),
     )
     out = devs_ranker.rank_github_post(
         {"repo": "anthropics/claude-code", "title": "v1.2", "stars": 5000}
@@ -91,11 +91,13 @@ def test_rank_x_tweet_batch_llm_success(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda s, u, model="gpt-4o-mini": json.dumps(
-            [
-                {"id": 1, "quality_score": 8.0, "topics": ["mcp"]},
-                {"id": 2, "quality_score": 3.0, "topics": []},
-            ]
+        lambda s, u, model="gpt-4o-mini", response_format=None: json.dumps(
+            {
+                "results": [
+                    {"id": 1, "quality_score": 8.0, "topics": ["mcp"]},
+                    {"id": 2, "quality_score": 3.0, "topics": []},
+                ]
+            }
         ),
     )
     tweets = [
@@ -147,7 +149,9 @@ def test_summarize_hn_thread_llm_success(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda s, u, model="gpt-4o-mini": json.dumps(["Bullet 1", "Bullet 2"]),
+        lambda s, u, model="gpt-4o-mini", response_format=None: json.dumps(
+            {"bullets": ["Bullet 1", "Bullet 2"]}
+        ),
     )
     out = devs_ranker.summarize_hn_thread("t", ["comment1", "comment2"])
     assert out == ["Bullet 1", "Bullet 2"]
@@ -156,7 +160,7 @@ def test_summarize_hn_thread_llm_success(monkeypatch):
 def test_summarize_hn_thread_bad_json(monkeypatch):
     monkeypatch.setattr(devs_ranker, "OPENAI_API_KEY", "fake")
     monkeypatch.setattr(
-        devs_ranker, "_call_openai", lambda s, u, model="gpt-4o-mini": "not json"
+        devs_ranker, "_call_openai", lambda s, u, model="gpt-4o-mini", response_format=None: "not json"
     )
     out = devs_ranker.summarize_hn_thread("t", ["c"])
     assert out == []
@@ -171,7 +175,7 @@ def test_extract_github_insights_llm_success(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda s, u, model="gpt-4o-mini": json.dumps(
+        lambda s, u, model="gpt-4o-mini", response_format=None: json.dumps(
             {
                 "release_bullets": ["Added MCP support", "Breaks old tool api"],
                 "why_it_matters": "Faster agent tool-use.",
@@ -227,8 +231,13 @@ def test_cluster_tweets_llm_success(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda s, u, model="gpt-4o-mini": json.dumps(
-            {"MCP patterns": [1, 2], "Agent evals": [3]}
+        lambda s, u, model="gpt-4o-mini", response_format=None: json.dumps(
+            {
+                "clusters": [
+                    {"label": "MCP patterns", "tweet_ids": [1, 2]},
+                    {"label": "Agent evals", "tweet_ids": [3]},
+                ]
+            }
         ),
     )
     out = devs_ranker.cluster_tweets_into_topics(
@@ -271,19 +280,21 @@ def test_synthesize_digest_llm_success(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda s, u, model="gpt-4o-mini": json.dumps(
-            [
-                {
-                    "text": "Engineers are converging on MCP for tool standardization.",
-                    "sources": [
-                        {
-                            "url": "https://twitter.com/a/status/1",
-                            "author_handle": "a",
-                            "author_name": "Alice",
-                        }
-                    ],
-                }
-            ]
+        lambda s, u, model="gpt-4o-mini", response_format=None: json.dumps(
+            {
+                "bullets": [
+                    {
+                        "text": "Engineers are converging on MCP for tool standardization.",
+                        "sources": [
+                            {
+                                "url": "https://twitter.com/a/status/1",
+                                "author_handle": "a",
+                                "author_name": "Alice",
+                            }
+                        ],
+                    }
+                ]
+            }
         ),
     )
     tweets = [
@@ -306,29 +317,31 @@ def test_synthesize_digest_drops_hallucinated_source_urls(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda s, u, model="gpt-4o-mini": json.dumps(
-            [
-                {
-                    "text": "Valid bullet citing a real tweet.",
-                    "sources": [
-                        {
-                            "url": "https://twitter.com/a/status/1",
-                            "author_handle": "a",
-                            "author_name": "Alice",
-                        }
-                    ],
-                },
-                {
-                    "text": "Hallucinated bullet citing a fake url.",
-                    "sources": [
-                        {
-                            "url": "https://twitter.com/ghost/status/999",
-                            "author_handle": "ghost",
-                            "author_name": "Ghost",
-                        }
-                    ],
-                },
-            ]
+        lambda s, u, model="gpt-4o-mini", response_format=None: json.dumps(
+            {
+                "bullets": [
+                    {
+                        "text": "Valid bullet citing a real tweet.",
+                        "sources": [
+                            {
+                                "url": "https://twitter.com/a/status/1",
+                                "author_handle": "a",
+                                "author_name": "Alice",
+                            }
+                        ],
+                    },
+                    {
+                        "text": "Hallucinated bullet citing a fake url.",
+                        "sources": [
+                            {
+                                "url": "https://twitter.com/ghost/status/999",
+                                "author_handle": "ghost",
+                                "author_name": "Ghost",
+                            }
+                        ],
+                    },
+                ]
+            }
         ),
     )
     tweets = [
@@ -351,29 +364,31 @@ def test_synthesize_digest_all_hallucinated_falls_back(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda s, u, model="gpt-4o-mini": json.dumps(
-            [
-                {
-                    "text": "Fabricated 1",
-                    "sources": [
-                        {
-                            "url": "https://twitter.com/ghost/status/999",
-                            "author_handle": "ghost",
-                            "author_name": "Ghost",
-                        }
-                    ],
-                },
-                {
-                    "text": "Fabricated 2",
-                    "sources": [
-                        {
-                            "url": "https://twitter.com/nope/status/42",
-                            "author_handle": "nope",
-                            "author_name": "Nope",
-                        }
-                    ],
-                },
-            ]
+        lambda s, u, model="gpt-4o-mini", response_format=None: json.dumps(
+            {
+                "bullets": [
+                    {
+                        "text": "Fabricated 1",
+                        "sources": [
+                            {
+                                "url": "https://twitter.com/ghost/status/999",
+                                "author_handle": "ghost",
+                                "author_name": "Ghost",
+                            }
+                        ],
+                    },
+                    {
+                        "text": "Fabricated 2",
+                        "sources": [
+                            {
+                                "url": "https://twitter.com/nope/status/42",
+                                "author_handle": "nope",
+                                "author_name": "Nope",
+                            }
+                        ],
+                    },
+                ]
+            }
         ),
     )
     tweets = [
@@ -398,8 +413,8 @@ def test_synthesize_digest_drops_bullets_without_sources(monkeypatch):
     monkeypatch.setattr(
         devs_ranker,
         "_call_openai",
-        lambda s, u, model="gpt-4o-mini": json.dumps(
-            [{"text": "no sources", "sources": []}]
+        lambda s, u, model="gpt-4o-mini", response_format=None: json.dumps(
+            {"bullets": [{"text": "no sources", "sources": []}]}
         ),
     )
     tweets = [

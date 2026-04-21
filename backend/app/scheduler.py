@@ -90,6 +90,9 @@ def start_scheduler():
         id="devs_collect",
         name="Daily devs feed collection (HN + GitHub + X)",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
     )
 
     _scheduler.add_job(
@@ -98,6 +101,9 @@ def start_scheduler():
         id="devs_publish",
         name="Daily devs feed publish orchestrator",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
     )
 
     _scheduler.add_job(
@@ -106,6 +112,9 @@ def start_scheduler():
         id="devs_handle_discovery",
         name="Weekly X handle discovery (Sun 02:00 UTC)",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
     )
 
     _scheduler.start()
