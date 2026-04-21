@@ -1,4 +1,7 @@
-from pydantic import BaseModel, model_validator
+from datetime import datetime
+from typing import Annotated, Literal, Union
+
+from pydantic import BaseModel, Field, field_serializer, model_validator
 
 
 class StoryOut(BaseModel):
@@ -91,3 +94,89 @@ class CandidateVideoOut(BaseModel):
     processed: bool
 
     model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# /api/devs/posts — discriminated-union response models
+# ---------------------------------------------------------------------------
+
+
+class XBulletSource(BaseModel):
+    url: str
+    author_handle: str
+    author_name: str | None = None
+
+
+class XBullet(BaseModel):
+    text: str
+    sources: list[XBulletSource]
+
+
+class XTopicDigestOut(BaseModel):
+    """Served shape for a synthesized X topic digest."""
+
+    source: Literal["x"] = "x"
+    id: int
+    rank_score: float | None = None
+    display_order: int
+    topic: str
+    bullets: list[XBullet]
+
+    model_config = {"from_attributes": True}
+
+
+class HNPostOut(BaseModel):
+    """Served shape for an HN post row."""
+
+    source: Literal["hn"] = "hn"
+    id: int
+    rank_score: float | None = None
+    display_order: int
+    url: str
+    published_at: datetime
+    title: str
+    hn_url: str
+    points: int
+    comments: int
+    bullets: list[str] | None = None
+    top_comment_excerpt: str | None = None
+    topics: list[str] | None = None
+
+    model_config = {"from_attributes": True}
+
+    @field_serializer("published_at")
+    def _serialize_published_at(self, value: datetime) -> str:
+        return value.isoformat()
+
+
+class GitHubPostOut(BaseModel):
+    """Served shape for a GitHub release / trending row."""
+
+    source: Literal["github"] = "github"
+    id: int
+    rank_score: float | None = None
+    display_order: int
+    url: str
+    published_at: datetime
+    repo: str
+    title: str
+    version: str | None = None
+    release_bullets: list[str] | None = None
+    release_notes_excerpt: str | None = None
+    why_it_matters: str | None = None
+    has_breaking_changes: bool | None = None
+    stars: int | None = None
+    stars_velocity_7d: int | None = None
+    topics: list[str] | None = None
+
+    model_config = {"from_attributes": True}
+
+    @field_serializer("published_at")
+    def _serialize_published_at(self, value: datetime) -> str:
+        return value.isoformat()
+
+
+DevPostOut = Annotated[
+    Union[XTopicDigestOut, HNPostOut, GitHubPostOut],
+    Field(discriminator="source"),
+]

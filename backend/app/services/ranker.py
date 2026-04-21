@@ -161,18 +161,27 @@ def _fallback_bullets(raw: str) -> list[str]:
     return parts[:4] if parts else [text[:200]]
 
 
-def _call_openai(system: str, user: str, *, model: str = "gpt-4o-mini") -> str:
+def _call_openai(
+    system: str,
+    user: str,
+    *,
+    model: str = "gpt-4o-mini",
+    response_format: dict | None = None,
+) -> str:
     client = OpenAI(api_key=OPENAI_API_KEY, timeout=120.0)
     for attempt in range(_MAX_RETRIES):
         try:
-            response = client.chat.completions.create(
-                model=model,
-                temperature=0.3,
-                messages=[
+            kwargs: dict = {
+                "model": model,
+                "temperature": 0.3,
+                "messages": [
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
-            )
+            }
+            if response_format is not None:
+                kwargs["response_format"] = response_format
+            response = client.chat.completions.create(**kwargs)
             return response.choices[0].message.content.strip()
         except APITimeoutError:
             if attempt == _MAX_RETRIES - 1:

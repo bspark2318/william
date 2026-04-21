@@ -1,0 +1,104 @@
+# Configuration for the /api/devs/posts skill-development feed.
+# Edit values here; env vars govern cadence + budgets (see config.py).
+
+x_handles:
+  tier_a:
+    - karpathy
+    - simonw
+    - HamelHusain
+    - swyx
+    - jxnlco
+    - eugeneyan
+    - AnthropicAI
+    - OpenAIDevs
+    - cursor_ai
+    - aider_chat
+    - hwchase17
+    - jerryjliu0
+  tier_b:
+    - rasbt
+    - lateinteraction
+    - sh_reya
+    - clefourrier
+    - aparnadhinak
+    - thorwebdev
+    - mattshumer_
+  research_practical:
+    - _jasonwei
+    - karinanguyen_
+    - tri_dao
+    - danielhanchen
+    - goodside
+    - srush_nlp
+    - emollick
+  research_deep:
+    - denny_zhou
+    - giffmana
+    - cwolferesearch
+
+hn_keyword_allowlist:
+  - claude code
+  - cursor
+  - aider
+  - cline
+  - mcp
+  - sub-agent
+  - tool use
+  - coding agent
+  - agent framework
+  - agent eval
+  - langgraph
+  - autogen
+  - spec-driven
+  - bounded autonomy
+  - context management
+  - prompt caching
+  - worktree
+  - model routing
+  - show hn
+  - lessons
+  - building
+  - how i
+  - prompt
+  - rag
+  - llm
+  - tooling
+  - workflow
+
+hn_keyword_blocklist:
+  - stock
+  - earnings
+  - lawsuit
+  - CEO
+  - funding round
+  - acquired
+  - IPO
+  - valuation
+
+github_languages:
+  - Python
+  - TypeScript
+  - Rust
+  - Go
+
+github_curated_repos:
+  - anthropics/claude-code
+  - getcursor/cursor
+  - paul-gauthier/aider
+  - cline/cline
+  - continuedev/continue
+  - modelcontextprotocol/servers
+  - modelcontextprotocol/python-sdk
+  - openai/openai-agents-python
+  - anthropics/anthropic-sdk-python
+  - langchain-ai/langgraph
+  - microsoft/autogen
+  - microsoft/semantic-kernel
+  - braintrustdata/braintrust
+  - langfuse/langfuse
+  - vllm-project/vllm
+
+slot_allocation:
+  hn: 3
+  github: 2
+  x_topics: 3

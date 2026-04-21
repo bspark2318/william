@@ -8,10 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, SessionLocal, engine, ensure_sqlite_columns
 from .models import Issue
-from .routers import issues
+from .routers import devs, issues
 from .routers.admin import router as admin_router
 from .scheduler import start_scheduler, stop_scheduler
 from .services.pipeline import collect_candidates, publish_issue
+
+from .models import DevPost, XTopicDigestRow
+from .services.devs_pipeline import collect_dev_candidates, publish_dev_feed
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +37,34 @@ def _bootstrap_if_empty() -> None:
         db.close()
 
 
+def _bootstrap_devs_if_empty() -> None:
+    """Run devs collect + publish on first start when both devs tables are empty."""
+    db = SessionLocal()
+    try:
+        has_dev_posts = db.query(DevPost).first() is not None
+        has_x_digests = db.query(XTopicDigestRow).first() is not None
+        if has_dev_posts or has_x_digests:
+            return
+        logger.info("No devs posts found — running startup devs collect + publish")
+        try:
+            collect_dev_candidates(db)
+        except Exception:
+            logger.exception(
+                "Startup devs collect failed — attempting publish with any saved candidates"
+            )
+        publish_dev_feed(db)
+    except Exception:
+        logger.exception("Startup devs bootstrap failed")
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_sqlite_columns()
     threading.Thread(target=_bootstrap_if_empty, daemon=True).start()
+    threading.Thread(target=_bootstrap_devs_if_empty, daemon=True).start()
     start_scheduler()
     yield
     stop_scheduler()
@@ -58,4 +84,5 @@ app.add_middleware(
 )
 
 app.include_router(issues.router)
+app.include_router(devs.router)
 app.include_router(admin_router)

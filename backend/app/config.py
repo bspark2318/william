@@ -10,6 +10,7 @@ _env_specific = os.getenv("DOTENV_FILE", ".env.dev")
 load_dotenv(_BACKEND_ROOT / _env_specific, override=True)
 
 _CONFIG_PATH = _BACKEND_ROOT / "search_config.yaml"
+_DEVS_CONFIG_PATH = _BACKEND_ROOT / "devs_config.yaml"
 
 
 def _load_search_config() -> dict:
@@ -19,7 +20,15 @@ def _load_search_config() -> dict:
     return {}
 
 
+def _load_devs_config() -> dict:
+    if _DEVS_CONFIG_PATH.exists():
+        with open(_DEVS_CONFIG_PATH) as f:
+            return yaml.safe_load(f) or {}
+    return {}
+
+
 _cfg = _load_search_config()
+_devs_cfg = _load_devs_config()
 
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
@@ -74,3 +83,26 @@ COLLECT_HOUR: int = int(os.getenv("COLLECT_HOUR", "6"))
 PUBLISH_HOUR: int = int(os.getenv("PUBLISH_HOUR", "8"))
 # Unused (legacy env): weekly publish was keyed by day; publish is now daily.
 PUBLISH_DAY: str = os.getenv("PUBLISH_DAY", "monday")
+
+# ---------------------------------------------------------------------------
+# /api/devs feed — skill-development feed for agentic coders
+# ---------------------------------------------------------------------------
+
+APIFY_TOKEN: str = os.getenv("APIFY_TOKEN", "")
+GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
+
+_devs_slots = (_devs_cfg.get("slot_allocation") or {}) if _devs_cfg else {}
+
+DEV_FEED_SIZE_HN: int = int(os.getenv("DEV_FEED_SIZE_HN", str(_devs_slots.get("hn", 3))))
+DEV_FEED_SIZE_GITHUB: int = int(
+    os.getenv("DEV_FEED_SIZE_GITHUB", str(_devs_slots.get("github", 2)))
+)
+DEV_FEED_SIZE_X_TOPICS: int = int(
+    os.getenv("DEV_FEED_SIZE_X_TOPICS", str(_devs_slots.get("x_topics", 3)))
+)
+
+MAX_X_HANDLES: int = int(os.getenv("MAX_X_HANDLES", "50"))
+APIFY_MONTHLY_TWEET_CAP: int = int(os.getenv("APIFY_MONTHLY_TWEET_CAP", "15000"))
+
+# Full devs config dict exposed for pipeline / ranker consumption.
+DEVS_CONFIG: dict = _devs_cfg
