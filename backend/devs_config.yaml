@@ -83,8 +83,7 @@ github_languages:
 
 github_curated_repos:
   - anthropics/claude-code
-  - getcursor/cursor
-  - paul-gauthier/aider
+  - Aider-AI/aider
   - cline/cline
   - continuedev/continue
   - modelcontextprotocol/servers
@@ -94,7 +93,7 @@ github_curated_repos:
   - langchain-ai/langgraph
   - microsoft/autogen
   - microsoft/semantic-kernel
-  - braintrustdata/braintrust
+  - braintrustdata/braintrust-sdk-python
   - langfuse/langfuse
   - vllm-project/vllm
 

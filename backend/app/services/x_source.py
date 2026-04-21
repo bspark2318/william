@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 try:  # pragma: no cover — tests monkeypatch ApifyClient
     from apify_client import ApifyClient
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     ApifyClient = None  # type: ignore
 
 from ..models import CandidateXTweet
@@ -201,6 +201,14 @@ def fetch_tweets_via_apify(
     except Exception:
         logger.exception("Apify dataset iteration failed")
         return []
+
+    run_status = (run or {}).get("status")
+    logger.info("Apify run completed — %d items, status=%s", len(items), run_status)
+    if not items and run_status == "SUCCEEDED":
+        logger.warning(
+            "Apify returned 0 items despite SUCCEEDED — likely paywall or config "
+            "issue; check actor log in Apify console"
+        )
 
     normalized: list[dict] = []
     for raw in items:

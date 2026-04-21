@@ -173,6 +173,41 @@ def test_fetch_tweets_via_apify_handles_actor_error():
     assert out == []
 
 
+def test_fetch_tweets_via_apify_warns_on_succeeded_with_zero_items(caplog):
+    """Paywalled actor runs return SUCCEEDED + empty dataset — must WARN, not hide."""
+
+    class ZeroItemClient:
+        def actor(self, _):
+            class A:
+                def call(self, run_input=None):
+                    return {"defaultDatasetId": "ds-0", "status": "SUCCEEDED"}
+
+            return A()
+
+        def dataset(self, _):
+            return FakeDataset([])
+
+    with caplog.at_level("WARNING", logger="app.services.x_source"):
+        out = x_source.fetch_tweets_via_apify(
+            ["karpathy"], token="t", client=ZeroItemClient(), now=_now()
+        )
+    assert out == []
+    assert any(
+        "0 items despite SUCCEEDED" in rec.message for rec in caplog.records
+    ), f"expected paywall warning, got: {[r.message for r in caplog.records]}"
+
+
+def test_fetch_tweets_via_apify_no_warning_on_nonempty_run(caplog):
+    """Successful runs must not emit the zero-items WARN."""
+    client = FakeApifyClient([_tweet(1)])
+    with caplog.at_level("WARNING", logger="app.services.x_source"):
+        out = x_source.fetch_tweets_via_apify(
+            ["karpathy"], token="t", client=client, now=_now()
+        )
+    assert len(out) == 1
+    assert not any("despite SUCCEEDED" in rec.message for rec in caplog.records)
+
+
 def test_fetch_tweets_via_apify_no_dataset_id():
     class NoDS:
         def actor(self, _):
