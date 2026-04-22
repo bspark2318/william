@@ -39,5 +39,3 @@ export interface GitHubPost extends BasePost {
 }
 
 export type DevPost = HNPost | GitHubPost;
-
-export type DevSource = DevPost["source"];

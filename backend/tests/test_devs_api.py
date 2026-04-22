@@ -215,6 +215,5 @@ def test_admin_collect_trigger_invokes_pipeline_orchestrator(db_session, monkeyp
     assert r.json() == {
         "status": "ok",
         "stories_added": 3,
-        "videos_added": 0,
     }
     assert called_with["db_type"] == "Session"

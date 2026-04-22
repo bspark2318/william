@@ -61,7 +61,6 @@ def trigger_devs_collect(db: Session = Depends(get_db)):
     return {
         "status": "ok",
         "stories_added": hn + github,
-        "videos_added": 0,
     }
 
 
@@ -74,7 +73,6 @@ def trigger_devs_publish(db: Session = Depends(get_db)):
     return {
         "status": "published" if feed_size > 0 else "skipped",
         "feed_size": feed_size,
-        "digest_title": "Developer briefing",
     }
 
 
@@ -95,7 +93,6 @@ def list_devs_candidates(db: Session = Depends(get_db)):
             "id": r.id,
             "source": r.source,
             "title": r.title,
-            "text": None,
             "url": r.url,
             "importance_score": r.importance_score,
             "rank_score": r.rank_score,
@@ -104,5 +101,4 @@ def list_devs_candidates(db: Session = Depends(get_db)):
             "is_active": bool(r.is_active),
             "display_order": r.display_order,
         })
-    out.sort(key=lambda c: c["collected_at"] or "", reverse=True)
     return out

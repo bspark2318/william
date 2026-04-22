@@ -20,8 +20,6 @@ from pathlib import Path
 import yaml
 from sqlalchemy.orm import Session
 
-from ..database import SessionLocal
-
 from ..models import DevPost, RepoStarSnapshot
 
 from . import devs_ranker
@@ -207,7 +205,7 @@ def publish_hn(db: Session, *, start_order: int = 1, now: datetime | None = None
     return published
 
 
-def publish_github(db: Session, *, start_order: int = 4, now: datetime | None = None) -> int:
+def publish_github(db: Session, *, start_order: int, now: datetime | None = None) -> int:
     """Pick top GitHub candidates, extract insights, mark active."""
     now = now or datetime.now(timezone.utc)
     cutoff = now - timedelta(days=_GITHUB_LOOKBACK_DAYS)
@@ -309,30 +307,3 @@ def publish_dev_feed(db: Session) -> dict | None:
         "github_published": gh_count,
         "purged": purge_stats,
     }
-
-
-# ---------------------------------------------------------------------------
-# Convenience wrappers (mirroring pipeline.py `collect_candidates` / `publish_issue`)
-# ---------------------------------------------------------------------------
-
-
-def run_collect(db: Session | None = None) -> dict:
-    own = db is None
-    if own:
-        db = SessionLocal()
-    try:
-        return collect_dev_candidates(db)
-    finally:
-        if own:
-            db.close()
-
-
-def run_publish(db: Session | None = None) -> dict | None:
-    own = db is None
-    if own:
-        db = SessionLocal()
-    try:
-        return publish_dev_feed(db)
-    finally:
-        if own:
-            db.close()

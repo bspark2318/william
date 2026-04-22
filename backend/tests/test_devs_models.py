@@ -119,11 +119,12 @@ def test_repo_star_snapshot_roundtrip(db_session):
 
 
 # ---------------------------------------------------------------------------
-# DevPost url uniqueness
+# DevPost (source, url) uniqueness — same URL is allowed across sources,
+# but duplicates within a single source collide.
 # ---------------------------------------------------------------------------
 
 
-def test_devpost_url_unique(db_session):
+def test_devpost_url_unique_per_source(db_session):
     db_session.add(
         DevPost(
             source="hn",
@@ -132,14 +133,22 @@ def test_devpost_url_unique(db_session):
             title="a",
         )
     )
-    db_session.commit()
-
     db_session.add(
         DevPost(
             source="github",
             url="https://example.com/a",
             published_at=_dt(),
             title="b",
+        )
+    )
+    db_session.commit()
+
+    db_session.add(
+        DevPost(
+            source="hn",
+            url="https://example.com/a",
+            published_at=_dt(),
+            title="c",
         )
     )
     import pytest

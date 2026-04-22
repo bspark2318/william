@@ -4,7 +4,7 @@ All framing is agentic-coding-centric (see source plan "Framing tilt"). Every
 function has a heuristic / None fallback so pipelines never block on LLM
 availability.
 
-Reuses `_call_openai` + `_parse_json_array` from the existing `ranker.py`.
+Reuses `_call_openai` from the existing `ranker.py`.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import math
 import re
 
 from ..config import OPENAI_API_KEY
-from .ranker import _call_openai, _parse_json_array
+from .ranker import _call_openai
 
 logger = logging.getLogger(__name__)
 
@@ -319,6 +319,4 @@ __all__ = [
     "rank_github_post",
     "summarize_hn_thread",
     "extract_github_insights",
-    "_call_openai",
-    "_parse_json_array",
 ]

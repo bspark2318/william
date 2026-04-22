@@ -108,7 +108,7 @@ export default function CandidatesInspector() {
               <tr>
                 <th className="text-left px-3 py-2 w-8" />
                 <th className="text-left px-3 py-2">src</th>
-                <th className="text-left px-3 py-2">title / text</th>
+                <th className="text-left px-3 py-2">title</th>
                 <th className="text-right px-3 py-2">imp</th>
                 <th className="text-right px-3 py-2">rank</th>
                 <th className="text-center px-3 py-2">active</th>
@@ -128,7 +128,7 @@ export default function CandidatesInspector() {
               ) : (
                 filtered.map((c) => {
                   const isOpen = expanded.has(c.id);
-                  const label = c.title ?? c.text ?? c.url;
+                  const label = c.title ?? c.url;
                   return (
                     <FragmentRow
                       key={c.id}

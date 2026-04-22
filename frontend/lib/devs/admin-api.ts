@@ -6,20 +6,17 @@ const BASE = `${API_URL}/api/admin/devs`;
 export interface CollectResponse {
   status: "ok" | "error";
   stories_added: number;
-  videos_added: number;
 }
 
 export interface PublishResponse {
   status: "published" | "skipped";
   feed_size: number;
-  digest_title: string;
 }
 
 export interface Candidate {
   id: number;
   source: "hn" | "github";
   title?: string | null;
-  text?: string | null;
   url: string;
   importance_score: number | null;
   rank_score: number | null;

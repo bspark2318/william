@@ -23,10 +23,7 @@ def list_dev_posts(db: Session = Depends(get_db)):
     dev_rows = (
         db.query(DevPost)
         .filter(DevPost.is_active == True)  # noqa: E712
+        .order_by(DevPost.display_order.asc().nullslast())
         .all()
     )
-    serialized = [_serialize_dev_post(r) for r in dev_rows]
-    serialized.sort(
-        key=lambda p: (p.display_order if p.display_order is not None else 10_000)
-    )
-    return serialized
+    return [_serialize_dev_post(r) for r in dev_rows]

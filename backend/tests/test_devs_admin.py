@@ -14,7 +14,6 @@ def test_trigger_devs_collect(mock_collect, client):
     assert r.json() == {
         "status": "ok",
         "stories_added": 8,
-        "videos_added": 0,
     }
     mock_collect.assert_called_once()
 
@@ -30,7 +29,6 @@ def test_trigger_devs_publish(mock_publish, client):
     body = r.json()
     assert body["status"] == "published"
     assert body["feed_size"] == 5
-    assert body["digest_title"]
     mock_publish.assert_called_once()
 
 
@@ -92,7 +90,6 @@ def test_devs_candidates_populated(client, db_session):
 
     hn_row = by_source["hn"]
     assert hn_row["title"] == "A coding agent appears"
-    assert hn_row["text"] is None
     assert hn_row["rank_features"] == {"heuristic": 0.7, "llm": 0.9}
     assert hn_row["is_active"] is False
 

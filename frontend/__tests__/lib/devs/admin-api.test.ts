@@ -32,7 +32,7 @@ function fail(status: number, body: string) {
 describe("admin-api", () => {
   it("runCollect posts to /collect and returns payload", async () => {
     mockFetch.mockResolvedValueOnce(
-      ok({ status: "ok", stories_added: 3, videos_added: 0 }),
+      ok({ status: "ok", stories_added: 3 }),
     );
     const r = await runCollect();
     expect(r.stories_added).toBe(3);
@@ -44,7 +44,7 @@ describe("admin-api", () => {
 
   it("runPublish posts to /publish", async () => {
     mockFetch.mockResolvedValueOnce(
-      ok({ status: "published", feed_size: 5, digest_title: "t" }),
+      ok({ status: "published", feed_size: 5 }),
     );
     const r = await runPublish();
     expect(r.feed_size).toBe(5);

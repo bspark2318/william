@@ -22,7 +22,6 @@ function cand(overrides: Partial<Candidate> = {}): Candidate {
     id: 1,
     source: "hn",
     title: "Default title",
-    text: null,
     url: "https://example.com/a",
     importance_score: 5.2,
     rank_score: 7.1,
