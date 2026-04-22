@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, Field, field_serializer, model_validator  # noqa: F401
+from pydantic import BaseModel, Field, field_serializer, model_validator
 
 
 class StoryOut(BaseModel):
