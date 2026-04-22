@@ -81,6 +81,30 @@ github_languages:
   - Rust
   - Go
 
+github_topics:
+  - llm
+  - ai-agents
+  - agents
+  - mcp
+  - rag
+  - coding-assistant
+  - llmops
+
+topic_search_cap: 50
+github_topic_min_forks: 500
+
+github_topic_blocklist:
+  - awesome-list
+  - awesome
+  - interview
+  - roadmap
+  - learning
+  - resources
+  - tutorial
+  - cheatsheet
+  - book
+  - course
+
 github_curated_repos:
   - anthropics/claude-code
   - getcursor/cursor

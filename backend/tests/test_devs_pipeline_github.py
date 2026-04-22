@@ -15,21 +15,21 @@ def test_collect_github_writes_snapshots_for_velocity(db_session, monkeypatch):
     monkeypatch.setattr(
         github_source,
         "_load_config",
-        lambda: {"github_languages": ["Rust"], "github_curated_repos": []},
+        lambda: {"github_topics": ["llm"], "topic_search_cap": 10, "github_curated_repos": []},
     )
     monkeypatch.setattr(
         github_source,
-        "fetch_trending",
-        lambda langs, *, token=None, client=None, today=None: [
+        "fetch_topic_candidates",
+        lambda topics, *, cap=50, stars_floor=50, forks_floor=0, lang_allowlist=None, topic_blocklist=None, token=None, client=None, today=None: [
             {
                 "kind": "trending",
                 "repo": "acme/widget",
                 "url": "https://github.com/acme/widget",
                 "title": "widget description",
                 "stars": 1500,
+                "forks": 300,
                 "published_at": now,
-                "language": "Rust",
-                "topics": ["rust"],
+                "topics": ["llm"],
             }
         ],
     )

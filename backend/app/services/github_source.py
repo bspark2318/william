@@ -38,6 +38,8 @@ RELEASE_LOOKBACK_DAYS = 14
 TRENDING_PUSHED_LOOKBACK_DAYS = 7
 TRENDING_STARS_FLOOR = 50
 TRENDING_PER_LANGUAGE = 10
+TOPIC_SEARCH_CAP = 50
+TOPIC_PUSHED_LOOKBACK_DAYS = 30
 
 
 def _load_config() -> dict:
@@ -134,6 +136,86 @@ def fetch_trending(
                 pass
 
 
+def fetch_topic_candidates(
+    topics: Iterable[str],
+    *,
+    stars_floor: int = TRENDING_STARS_FLOOR,
+    forks_floor: int = 0,
+    cap: int = TOPIC_SEARCH_CAP,
+    lang_allowlist: Iterable[str] | None = None,
+    topic_blocklist: Iterable[str] | None = None,
+    token: str | None = None,
+    client=None,
+    today: datetime | None = None,
+) -> list[dict]:
+    """Topic-driven repo search. Returns up to `cap` normalized candidate dicts.
+
+    Deduplicates across topics (first-seen wins) then sorts by stars descending
+    as a cold-start proxy until velocity baselines accumulate.
+    """
+    if client is None:
+        if httpx is None:
+            logger.warning("httpx not installed — cannot fetch GitHub topic candidates")
+            return []
+        client = httpx.Client(timeout=15.0)
+        own_client = True
+    else:
+        own_client = False
+
+    now = today or datetime.now(timezone.utc)
+    cutoff = (now - timedelta(days=TOPIC_PUSHED_LOOKBACK_DAYS)).date().isoformat()
+    headers = _headers(token)
+    seen: dict[str, dict] = {}
+    lang_allow = {l.lower() for l in (lang_allowlist or [])}
+    blocked_topics = {t.lower() for t in (topic_blocklist or [])}
+
+    try:
+        for topic in topics:
+            q = f"topic:{topic} stars:>{stars_floor} pushed:>{cutoff}"
+            if forks_floor:
+                q += f" forks:>{forks_floor}"
+            try:
+                payload = _get_json(
+                    client,
+                    f"{_GITHUB_BASE}/search/repositories",
+                    headers=headers,
+                    params={"q": q, "sort": "stars", "order": "desc", "per_page": 30},
+                )
+            except Exception:
+                logger.exception("GitHub topic search failed for topic=%s", topic)
+                continue
+
+            for item in (payload or {}).get("items") or []:
+                full_name = item.get("full_name")
+                html_url = item.get("html_url")
+                if not full_name or not html_url or full_name in seen:
+                    continue
+                if lang_allow and (item.get("language") or "").lower() not in lang_allow:
+                    continue
+                repo_topics = [t.lower() for t in (item.get("topics") or [])]
+                if blocked_topics and any(t in blocked_topics for t in repo_topics):
+                    continue
+                seen[full_name] = {
+                    "kind": "trending",
+                    "repo": full_name,
+                    "url": html_url,
+                    "title": item.get("description") or full_name,
+                    "stars": int(item.get("stargazers_count") or 0),
+                    "forks": int(item.get("forks_count") or 0),
+                    "published_at": _parse_iso(item.get("pushed_at")) or now,
+                    "topics": repo_topics,
+                }
+
+        sorted_candidates = sorted(seen.values(), key=lambda x: x["stars"], reverse=True)
+        return sorted_candidates[:cap]
+    finally:
+        if own_client:
+            try:
+                client.close()
+            except Exception:  # pragma: no cover
+                pass
+
+
 def fetch_releases(
     repos: Iterable[str],
     *,
@@ -141,7 +223,7 @@ def fetch_releases(
     client=None,
     today: datetime | None = None,
 ) -> list[dict]:
-    """For each curated repo, pull up to 3 recent releases within the lookback."""
+    """For each repo, pull up to 3 recent releases within the lookback."""
     if client is None:
         if httpx is None:
             logger.warning("httpx not installed — cannot fetch GitHub releases")
@@ -245,12 +327,26 @@ def ingest_github(
     Returns count of new rows. Dedups by `url`.
     """
     cfg = _load_config()
-    languages = cfg.get("github_languages") or []
-    repos = cfg.get("github_curated_repos") or []
+    topics = cfg.get("github_topics") or []
+    cap = int(cfg.get("topic_search_cap") or TOPIC_SEARCH_CAP)
+    curated = cfg.get("github_curated_repos") or []
 
-    trending = fetch_trending(languages, token=token, client=client, today=today)
-    releases = fetch_releases(repos, token=token, client=client, today=today)
-    candidates = trending + releases
+    lang_allowlist = cfg.get("github_topic_language_allowlist") or cfg.get("github_languages") or []
+    topic_blocklist = cfg.get("github_topic_blocklist") or []
+    forks_floor = int(cfg.get("github_topic_min_forks") or 0)
+    topic_candidates = fetch_topic_candidates(
+        topics, cap=cap,
+        stars_floor=TRENDING_STARS_FLOOR,
+        forks_floor=forks_floor,
+        lang_allowlist=lang_allowlist,
+        topic_blocklist=topic_blocklist,
+        token=token, client=client, today=today,
+    )
+
+    # Releases: topic pool repos + curated floor (order-preserving dedup)
+    release_repos = list(dict.fromkeys([c["repo"] for c in topic_candidates] + curated))
+    releases = fetch_releases(release_repos, token=token, client=client, today=today)
+    candidates = topic_candidates + releases
 
     if not candidates:
         return 0
