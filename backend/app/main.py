@@ -31,9 +31,18 @@ def _bootstrap_all_if_empty() -> None:
             try:
                 collect_candidates(db)
             except Exception:
-                logger.exception("Startup collect failed — attempting publish with any saved candidates")
-            publish_issue(db)
+                logger.exception("Startup news collect failed — attempting publish with any saved candidates")
+            try:
+                publish_issue(db)
+            except Exception:
+                logger.exception("Startup news publish failed")
+    except Exception:
+        logger.exception("Startup news bootstrap failed")
+    finally:
+        db.close()
 
+    db = SessionLocal()
+    try:
         has_dev_posts = db.query(DevPost).first() is not None
         has_x_digests = db.query(XTopicDigestRow).first() is not None
         if not has_dev_posts and not has_x_digests:
@@ -41,12 +50,13 @@ def _bootstrap_all_if_empty() -> None:
             try:
                 collect_dev_candidates(db)
             except Exception:
-                logger.exception(
-                    "Startup devs collect failed — attempting publish with any saved candidates"
-                )
-            publish_dev_feed(db)
+                logger.exception("Startup devs collect failed — attempting publish with any saved candidates")
+            try:
+                publish_dev_feed(db)
+            except Exception:
+                logger.exception("Startup devs publish failed")
     except Exception:
-        logger.exception("Startup bootstrap failed")
+        logger.exception("Startup devs bootstrap failed")
     finally:
         db.close()
 
