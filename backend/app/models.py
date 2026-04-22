@@ -7,6 +7,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.sqlite import JSON
@@ -121,7 +122,7 @@ class DevPost(Base):
     # Common
     id = Column(Integer, primary_key=True, index=True)
     source = Column(String, nullable=False, index=True)  # "hn" | "github"
-    url = Column(String, unique=True, nullable=False, index=True)
+    url = Column(String, nullable=False, index=True)
     published_at = Column(DateTime(timezone=True), nullable=False)
     collected_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
     title = Column(String, nullable=False)
@@ -150,6 +151,8 @@ class DevPost(Base):
     has_breaking_changes = Column(Boolean, nullable=True)
     stars = Column(Integer, nullable=True)
     stars_velocity_7d = Column(Integer, nullable=True)
+
+    __table_args__ = (UniqueConstraint("source", "url", name="uq_dev_posts_source_url"),)
 
 
 class CandidateXTweet(Base):
