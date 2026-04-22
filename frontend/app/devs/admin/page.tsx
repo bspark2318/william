@@ -16,7 +16,7 @@ export default function DevsAdminPage() {
           <span className="text-[#7cffb2]">$</span> devs/admin
         </h1>
         <p className="text-xs text-[#71717a] mt-1 font-mono">
-          skill-dev feed controls · not publicly linked · no auth yet
+          skill-dev feed controls · basic-auth gated
         </p>
       </header>
       <AdminConsole />
