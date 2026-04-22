@@ -47,7 +47,7 @@ describe("CandidatesInspector", () => {
 
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/admin/devs/candidates",
+        "/api/admin-proxy/devs/candidates",
         expect.objectContaining({ cache: "no-store" }),
       ),
     );

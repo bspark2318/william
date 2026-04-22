@@ -1,7 +1,6 @@
-// TODO: add basic auth header once infra protects /devs/admin publicly.
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-const BASE = `${API_URL}/api/admin/devs`;
+// Admin calls go through /app/api/admin-proxy/[...path]/route.ts, which
+// injects the ADMIN_API_TOKEN server-side so it never reaches the browser.
+const BASE = "/api/admin-proxy/devs";
 
 export interface CollectResponse {
   status: "ok" | "error";

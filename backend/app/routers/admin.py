@@ -1,12 +1,15 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..config import (
+    ADMIN_TOKEN,
     APIFY_MONTHLY_TWEET_CAP,
     MAX_X_HANDLES,
     VIDEO_PUBLISH_LOOKBACK_DAYS,
@@ -23,7 +26,38 @@ from ..models import (
 )
 from ..services.devs_pipeline import collect_dev_candidates, publish_dev_feed
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+_bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def require_admin_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+) -> None:
+    # Read ADMIN_TOKEN via module global so tests can monkeypatch it at runtime.
+    token = ADMIN_TOKEN
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Admin auth not configured",
+        )
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if not secrets.compare_digest(credentials.credentials, token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid admin token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["admin"],
+    dependencies=[Depends(require_admin_token)],
+)
 
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 _DEVS_CONFIG_PATH = _BACKEND_ROOT / "devs_config.yaml"

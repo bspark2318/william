@@ -128,7 +128,7 @@ describe("HandleManagement", () => {
 
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/admin/devs/discovered-handles/newbie/add",
+        "/api/admin-proxy/devs/discovered-handles/newbie/add",
         expect.objectContaining({ method: "POST" }),
       ),
     );
@@ -172,7 +172,7 @@ describe("HandleManagement", () => {
 
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/admin/devs/discovered-handles/newbie/ignore",
+        "/api/admin-proxy/devs/discovered-handles/newbie/ignore",
         expect.objectContaining({ method: "POST" }),
       ),
     );

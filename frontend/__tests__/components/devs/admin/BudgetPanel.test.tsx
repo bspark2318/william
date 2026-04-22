@@ -39,7 +39,7 @@ describe("BudgetPanel", () => {
 
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/admin/devs/budget",
+        "/api/admin-proxy/devs/budget",
         expect.objectContaining({ cache: "no-store" }),
       ),
     );

@@ -91,6 +91,10 @@ PUBLISH_DAY: str = os.getenv("PUBLISH_DAY", "monday")
 APIFY_TOKEN: str = os.getenv("APIFY_TOKEN", "")
 GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
 
+# Shared bearer token protecting /api/admin/*. When empty, the admin router
+# fails closed (503) — prevents accidentally shipping an open admin surface.
+ADMIN_TOKEN: str = os.getenv("ADMIN_TOKEN", "").strip()
+
 _devs_slots = (_devs_cfg.get("slot_allocation") or {}) if _devs_cfg else {}
 
 DEV_FEED_SIZE_HN: int = int(os.getenv("DEV_FEED_SIZE_HN", str(_devs_slots.get("hn", 3))))

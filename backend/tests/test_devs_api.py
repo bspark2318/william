@@ -244,8 +244,10 @@ def test_admin_collect_trigger_invokes_pipeline_orchestrator(db_session, monkeyp
     app = FastAPI()
     app.include_router(admin_router)
 
+    from tests.conftest import ADMIN_HEADERS
+
     with TestClient(app) as tc:
-        r = tc.post("/api/admin/devs/collect")
+        r = tc.post("/api/admin/devs/collect", headers=ADMIN_HEADERS)
 
     assert r.status_code == 200
     assert r.json() == {

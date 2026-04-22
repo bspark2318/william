@@ -45,7 +45,7 @@ describe("PipelineControls", () => {
 
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/admin/devs/collect",
+        "/api/admin-proxy/devs/collect",
         expect.objectContaining({ method: "POST" }),
       ),
     );
@@ -65,7 +65,7 @@ describe("PipelineControls", () => {
 
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/admin/devs/publish",
+        "/api/admin-proxy/devs/publish",
         expect.objectContaining({ method: "POST" }),
       ),
     );

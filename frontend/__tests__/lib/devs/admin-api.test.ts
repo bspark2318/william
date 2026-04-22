@@ -42,7 +42,7 @@ describe("admin-api", () => {
     const r = await runCollect();
     expect(r.stories_added).toBe(3);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/admin/devs/collect",
+      "/api/admin-proxy/devs/collect",
       expect.objectContaining({ method: "POST", cache: "no-store" }),
     );
   });
@@ -54,7 +54,7 @@ describe("admin-api", () => {
     const r = await runPublish();
     expect(r.feed_size).toBe(8);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/admin/devs/publish",
+      "/api/admin-proxy/devs/publish",
       expect.objectContaining({ method: "POST" }),
     );
   });
@@ -63,7 +63,7 @@ describe("admin-api", () => {
     mockFetch.mockResolvedValueOnce(ok([]));
     await getCandidates();
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/admin/devs/candidates",
+      "/api/admin-proxy/devs/candidates",
       expect.objectContaining({ cache: "no-store" }),
     );
   });
@@ -72,7 +72,7 @@ describe("admin-api", () => {
     mockFetch.mockResolvedValueOnce(ok([]));
     await getHandleStats();
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/admin/devs/handle-stats",
+      "/api/admin-proxy/devs/handle-stats",
       expect.objectContaining({ cache: "no-store" }),
     );
   });
@@ -81,7 +81,7 @@ describe("admin-api", () => {
     mockFetch.mockResolvedValueOnce(ok([]));
     await getDiscoveredHandles();
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/admin/devs/discovered-handles?status=pending",
+      "/api/admin-proxy/devs/discovered-handles?status=pending",
       expect.objectContaining({ cache: "no-store" }),
     );
   });
@@ -90,7 +90,7 @@ describe("admin-api", () => {
     mockFetch.mockResolvedValueOnce(ok({ status: "added" }));
     await addDiscoveredHandle("weird name");
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/admin/devs/discovered-handles/weird%20name/add",
+      "/api/admin-proxy/devs/discovered-handles/weird%20name/add",
       expect.objectContaining({ method: "POST" }),
     );
   });
@@ -99,7 +99,7 @@ describe("admin-api", () => {
     mockFetch.mockResolvedValueOnce(ok({ status: "ignored" }));
     await ignoreDiscoveredHandle("foo");
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/admin/devs/discovered-handles/foo/ignore",
+      "/api/admin-proxy/devs/discovered-handles/foo/ignore",
       expect.objectContaining({ method: "POST" }),
     );
   });
