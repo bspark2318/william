@@ -225,7 +225,9 @@ def ingest_hn(db: Session, *, client=None, limit: int = _TOP_STORY_SCAN_LIMIT) -
     urls = [c["url"] for c in candidates]
     existing = {
         row.url
-        for row in db.query(DevPost.url).filter(DevPost.url.in_(urls)).all()
+        for row in db.query(DevPost.url)
+        .filter(DevPost.source == "hn", DevPost.url.in_(urls))
+        .all()
     }
 
     added = 0

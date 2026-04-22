@@ -19,42 +19,34 @@ from .services.devs_pipeline import collect_dev_candidates, publish_dev_feed
 logger = logging.getLogger(__name__)
 
 
-def _bootstrap_if_empty() -> None:
-    """Run collect + publish on first start when the DB has no issues."""
+def _bootstrap_all_if_empty() -> None:
+    """Sequentially bootstrap news then devs on cold start. Set BOOTSTRAP_ON_EMPTY=false to skip."""
+    if os.getenv("BOOTSTRAP_ON_EMPTY", "true").lower() == "false":
+        return
+
     db = SessionLocal()
     try:
-        if db.query(Issue).first() is not None:
-            return
-        logger.info("No issues found — running startup collect + publish")
-        try:
-            collect_candidates(db)
-        except Exception:
-            logger.exception("Startup collect failed — attempting publish with any saved candidates")
-        publish_issue(db)
-    except Exception:
-        logger.exception("Startup bootstrap failed")
-    finally:
-        db.close()
+        if db.query(Issue).first() is None:
+            logger.info("No issues found — running startup collect + publish")
+            try:
+                collect_candidates(db)
+            except Exception:
+                logger.exception("Startup collect failed — attempting publish with any saved candidates")
+            publish_issue(db)
 
-
-def _bootstrap_devs_if_empty() -> None:
-    """Run devs collect + publish on first start when both devs tables are empty."""
-    db = SessionLocal()
-    try:
         has_dev_posts = db.query(DevPost).first() is not None
         has_x_digests = db.query(XTopicDigestRow).first() is not None
-        if has_dev_posts or has_x_digests:
-            return
-        logger.info("No devs posts found — running startup devs collect + publish")
-        try:
-            collect_dev_candidates(db)
-        except Exception:
-            logger.exception(
-                "Startup devs collect failed — attempting publish with any saved candidates"
-            )
-        publish_dev_feed(db)
+        if not has_dev_posts and not has_x_digests:
+            logger.info("No devs posts found — running startup devs collect + publish")
+            try:
+                collect_dev_candidates(db)
+            except Exception:
+                logger.exception(
+                    "Startup devs collect failed — attempting publish with any saved candidates"
+                )
+            publish_dev_feed(db)
     except Exception:
-        logger.exception("Startup devs bootstrap failed")
+        logger.exception("Startup bootstrap failed")
     finally:
         db.close()
 
@@ -63,8 +55,7 @@ def _bootstrap_devs_if_empty() -> None:
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_sqlite_columns()
-    threading.Thread(target=_bootstrap_if_empty, daemon=True).start()
-    threading.Thread(target=_bootstrap_devs_if_empty, daemon=True).start()
+    threading.Thread(target=_bootstrap_all_if_empty, daemon=True).start()
     start_scheduler()
     yield
     stop_scheduler()
