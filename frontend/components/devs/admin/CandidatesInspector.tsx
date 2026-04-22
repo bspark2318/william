@@ -8,7 +8,7 @@ import {
 } from "@/lib/devs/admin-api";
 import ErrorBanner from "./ErrorBanner";
 
-type SourceFilter = "all" | "x" | "hn" | "github";
+type SourceFilter = "all" | "hn" | "github";
 
 export default function CandidatesInspector() {
   const [data, setData] = useState<Candidate[] | null>(null);
@@ -70,7 +70,7 @@ export default function CandidatesInspector() {
         <span className="text-xs uppercase tracking-widest text-[#71717a] mr-2">
           source:
         </span>
-        {(["all", "x", "hn", "github"] as const).map((s) => (
+        {(["all", "hn", "github"] as const).map((s) => (
           <button
             key={s}
             type="button"
@@ -229,13 +229,8 @@ function FragmentRow({
   );
 }
 
-function SourceTag({ source }: { source: "x" | "hn" | "github" }) {
-  const color =
-    source === "x"
-      ? "text-[#7dd3fc]"
-      : source === "hn"
-        ? "text-[#fbbf24]"
-        : "text-[#7cffb2]";
+function SourceTag({ source }: { source: "hn" | "github" }) {
+  const color = source === "hn" ? "text-[#fbbf24]" : "text-[#7cffb2]";
   return (
     <span className={`${color} uppercase tracking-widest`}>{source}</span>
   );

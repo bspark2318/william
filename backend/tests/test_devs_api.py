@@ -1,16 +1,11 @@
-"""Tests for GET /api/devs/posts.
-
-These tests exercise the serving layer (Slice 3). They depend on ORM classes
-`DevPost` / `XTopicDigestRow` and the Pydantic schemas defined by Slice 1.
-When those symbols aren't yet present in the current worktree we skip the
-module rather than fail; the harmonizer re-runs the suite after merge.
-"""
+"""Tests for GET /api/devs/posts."""
 
 from datetime import datetime, timezone
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 
 @pytest.fixture
 def devs_client():
@@ -29,10 +24,9 @@ def test_list_dev_posts_empty(devs_client):
 
 
 def test_list_dev_posts_returns_union_and_is_ordered(devs_client, db_session):
-    """Seed HN + GitHub DevPost rows + an XTopicDigestRow; expect union-shaped
-    JSON ordered by display_order ascending, each item carrying the `source`
-    discriminator."""
-    from app.models import DevPost, XTopicDigestRow
+    """Seed HN + GitHub DevPost rows; expect discriminated-union JSON ordered
+    by display_order ascending, each item carrying the `source` discriminator."""
+    from app.models import DevPost
 
     hn = DevPost(
         source="hn",
@@ -83,41 +77,22 @@ def test_list_dev_posts_returns_union_and_is_ordered(devs_client, db_session):
         points=10,
         comments=1,
     )
-    x_digest = XTopicDigestRow(
-        topic="MCP patterns",
-        bullets=[
-            {
-                "text": "Servers are converging on a standard transport.",
-                "sources": [
-                    {
-                        "url": "https://x.com/user/status/1",
-                        "author_handle": "karpathy",
-                        "author_name": "Andrej",
-                    }
-                ],
-            }
-        ],
-        rank_score=8.0,
-        is_active=True,
-        display_order=6,
-        created_at=datetime(2026, 4, 18, 10, 0, tzinfo=timezone.utc),
-    )
-    db_session.add_all([hn, gh, inactive, x_digest])
+    db_session.add_all([hn, gh, inactive])
     db_session.commit()
 
     r = devs_client.get("/api/devs/posts")
     assert r.status_code == 200
     body = r.json()
-    assert len(body) == 3  # inactive row excluded
+    assert len(body) == 2  # inactive row excluded
 
-    # Ordered by display_order ascending across all three sources.
+    # Ordered by display_order ascending across sources.
     orders = [item["display_order"] for item in body]
     assert orders == sorted(orders)
-    assert orders == [1, 4, 6]
+    assert orders == [1, 4]
 
     # Every item carries a `source` discriminator.
     sources = [item["source"] for item in body]
-    assert sources == ["hn", "github", "x"]
+    assert sources == ["hn", "github"]
 
     hn_item = body[0]
     assert hn_item["title"] == "Show HN: A new coding agent"
@@ -129,17 +104,11 @@ def test_list_dev_posts_returns_union_and_is_ordered(devs_client, db_session):
     assert gh_item["has_breaking_changes"] is False
     assert gh_item["release_bullets"] == ["new sub-agents", "tool use improvements"]
 
-    x_item = body[2]
-    assert x_item["topic"] == "MCP patterns"
-    assert x_item["bullets"][0]["sources"][0]["author_handle"] == "karpathy"
-    # X digests have no url / published_at per frontend contract.
-    assert "url" not in x_item or x_item.get("url") is None
-
 
 def test_publish_dev_feed_then_list_returns_published_rows(
     devs_client, db_session, monkeypatch
 ):
-    """Boundary test: Slice 2 publisher writes rows that Slice 3 router serves.
+    """Boundary test: publisher writes rows that the router serves.
 
     Seed pre-scored, inactive HN + GitHub candidates. Invoke the real
     publish_dev_feed (with external HN comment fetch + LLM insight calls
@@ -217,12 +186,7 @@ def test_publish_dev_feed_then_list_returns_published_rows(
 
 
 def test_admin_collect_trigger_invokes_pipeline_orchestrator(db_session, monkeypatch):
-    """Boundary test: POST /api/admin/devs/collect actually calls collect_dev_candidates.
-
-    Verifies Slice 3 admin wiring and Slice 2 pipeline entrypoint agree on name
-    and signature (no ImportError, callable receives a Session, result shape
-    surfaces through the HTTP layer).
-    """
+    """Boundary test: POST /api/admin/devs/collect actually calls collect_dev_candidates."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
@@ -233,7 +197,7 @@ def test_admin_collect_trigger_invokes_pipeline_orchestrator(db_session, monkeyp
 
     def fake_collect(db):
         called_with["db_type"] = type(db).__name__
-        return {"hn": 1, "github": 2, "x": 3}
+        return {"hn": 1, "github": 2}
 
     monkeypatch.setattr(devs_pipeline, "collect_dev_candidates", fake_collect)
     # The admin router imports the symbol at module load — patch the reference too.
@@ -252,6 +216,5 @@ def test_admin_collect_trigger_invokes_pipeline_orchestrator(db_session, monkeyp
         "status": "ok",
         "stories_added": 3,
         "videos_added": 0,
-        "tweets_added": 3,
     }
     assert called_with["db_type"] == "Session"

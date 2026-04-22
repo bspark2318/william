@@ -2,13 +2,7 @@
 
 from datetime import datetime, timezone
 
-from app.models import (
-    CandidateXTweet,
-    DevPost,
-    DiscoveredHandle,
-    RepoStarSnapshot,
-    XTopicDigestRow,
-)
+from app.models import DevPost, RepoStarSnapshot
 
 
 def _dt(year=2026, month=4, day=17, hour=12, minute=0):
@@ -108,83 +102,6 @@ def test_devpost_github_row_roundtrip(db_session):
 
 
 # ---------------------------------------------------------------------------
-# CandidateXTweet
-# ---------------------------------------------------------------------------
-
-
-def test_candidate_x_tweet_roundtrip(db_session):
-    tw = CandidateXTweet(
-        url="https://x.com/simonw/status/1",
-        author_handle="simonw",
-        author_name="Simon Willison",
-        author_avatar_url="https://example.com/a.png",
-        text="MCP is changing how I wire up agents.",
-        likes=500,
-        reposts=100,
-        replies=40,
-        published_at=_dt(),
-        quality_score=8.2,
-        topic_cluster="mcp patterns",
-    )
-    db_session.add(tw)
-    db_session.commit()
-    db_session.refresh(tw)
-
-    got = db_session.query(CandidateXTweet).one()
-    assert got.author_handle == "simonw"
-    assert got.likes == 500
-    assert got.quality_score == 8.2
-    assert got.topic_cluster == "mcp patterns"
-    assert got.used_in_digest_id is None
-
-
-# ---------------------------------------------------------------------------
-# XTopicDigestRow + FK backref from CandidateXTweet
-# ---------------------------------------------------------------------------
-
-
-def test_x_topic_digest_and_tweet_backlink(db_session):
-    digest = XTopicDigestRow(
-        topic="MCP patterns",
-        bullets=[
-            {
-                "text": "Sub-agents via MCP are taking off.",
-                "sources": [
-                    {
-                        "url": "https://x.com/simonw/status/1",
-                        "author_handle": "simonw",
-                        "author_name": "Simon Willison",
-                    }
-                ],
-            }
-        ],
-        rank_score=9.1,
-        is_active=True,
-        display_order=6,
-    )
-    db_session.add(digest)
-    db_session.commit()
-    db_session.refresh(digest)
-
-    tw = CandidateXTweet(
-        url="https://x.com/simonw/status/1",
-        author_handle="simonw",
-        text="MCP patterns.",
-        published_at=_dt(),
-        used_in_digest_id=digest.id,
-    )
-    db_session.add(tw)
-    db_session.commit()
-    db_session.refresh(tw)
-
-    assert tw.used_in_digest_id == digest.id
-    assert digest.bullets[0]["sources"][0]["author_handle"] == "simonw"
-    assert digest.is_active is True
-    assert digest.display_order == 6
-    assert digest.created_at is not None
-
-
-# ---------------------------------------------------------------------------
 # RepoStarSnapshot
 # ---------------------------------------------------------------------------
 
@@ -199,43 +116,6 @@ def test_repo_star_snapshot_roundtrip(db_session):
     assert got.repo == "anthropics/claude-code"
     assert got.stars == 12000
     assert got.observed_at is not None
-
-
-# ---------------------------------------------------------------------------
-# DiscoveredHandle
-# ---------------------------------------------------------------------------
-
-
-def test_discovered_handle_defaults_and_roundtrip(db_session):
-    row = DiscoveredHandle(
-        handle="newhandle",
-        seed_engagement_count=3,
-        seed_handles=["simonw", "karpathy"],
-    )
-    db_session.add(row)
-    db_session.commit()
-    db_session.refresh(row)
-
-    got = db_session.query(DiscoveredHandle).one()
-    assert got.handle == "newhandle"
-    assert got.status == "pending"  # default
-    assert got.seed_engagement_count == 3
-    assert got.seed_handles == ["simonw", "karpathy"]
-    assert got.first_seen_at is not None
-    assert got.last_seen_at is not None
-
-
-def test_discovered_handle_unique_handle(db_session):
-    db_session.add(DiscoveredHandle(handle="dup"))
-    db_session.commit()
-
-    db_session.add(DiscoveredHandle(handle="dup"))
-    import pytest
-    from sqlalchemy.exc import IntegrityError
-
-    with pytest.raises(IntegrityError):
-        db_session.commit()
-    db_session.rollback()
 
 
 # ---------------------------------------------------------------------------

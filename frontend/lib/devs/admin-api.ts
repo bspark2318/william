@@ -7,7 +7,6 @@ export interface CollectResponse {
   status: "ok" | "error";
   stories_added: number;
   videos_added: number;
-  tweets_added: number;
 }
 
 export interface PublishResponse {
@@ -18,7 +17,7 @@ export interface PublishResponse {
 
 export interface Candidate {
   id: number;
-  source: "x" | "hn" | "github";
+  source: "hn" | "github";
   title?: string | null;
   text?: string | null;
   url: string;
@@ -28,40 +27,6 @@ export interface Candidate {
   collected_at: string;
   is_active: boolean;
   display_order: number | null;
-}
-
-export interface HandleStat {
-  handle: string;
-  tweets_collected_30d: number;
-  tweets_scored_above_6_30d: number;
-  tweets_published_30d: number;
-  last_published_at: string | null;
-}
-
-export interface DiscoveredHandle {
-  handle: string;
-  first_seen_at: string;
-  last_seen_at: string;
-  seed_engagement_count: number;
-  seed_handles: string[];
-  status: "pending" | "added" | "ignored";
-}
-
-export interface AddHandleResponse {
-  status: "added" | "rejected";
-  reason?: string;
-}
-
-export interface IgnoreHandleResponse {
-  status: "ignored";
-}
-
-export interface Budget {
-  tweets_used_30d: number;
-  tweets_cap: number;
-  pct_used: number;
-  remaining: number;
-  will_pause_at: string | null;
 }
 
 export class AdminApiError extends Error {
@@ -93,34 +58,4 @@ export function runPublish(): Promise<PublishResponse> {
 
 export function getCandidates(): Promise<Candidate[]> {
   return request("/candidates");
-}
-
-export function getHandleStats(): Promise<HandleStat[]> {
-  return request("/handle-stats");
-}
-
-export function getDiscoveredHandles(
-  status: "pending" | "added" | "ignored" = "pending",
-): Promise<DiscoveredHandle[]> {
-  return request(`/discovered-handles?status=${encodeURIComponent(status)}`);
-}
-
-export function addDiscoveredHandle(
-  handle: string,
-): Promise<AddHandleResponse> {
-  return request(`/discovered-handles/${encodeURIComponent(handle)}/add`, {
-    method: "POST",
-  });
-}
-
-export function ignoreDiscoveredHandle(
-  handle: string,
-): Promise<IgnoreHandleResponse> {
-  return request(`/discovered-handles/${encodeURIComponent(handle)}/ignore`, {
-    method: "POST",
-  });
-}
-
-export function getBudget(): Promise<Budget> {
-  return request("/budget");
 }

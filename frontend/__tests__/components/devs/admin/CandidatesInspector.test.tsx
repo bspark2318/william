@@ -39,7 +39,7 @@ describe("CandidatesInspector", () => {
     mockFetch.mockResolvedValueOnce(
       ok([
         cand({ id: 1, title: "HN one" }),
-        cand({ id: 2, source: "x", title: null, text: "X tweet body" }),
+        cand({ id: 2, source: "github", title: "gh release" }),
       ]),
     );
 
@@ -52,15 +52,14 @@ describe("CandidatesInspector", () => {
       ),
     );
     expect(await screen.findByText("HN one")).toBeInTheDocument();
-    expect(screen.getByText("X tweet body")).toBeInTheDocument();
+    expect(screen.getByText("gh release")).toBeInTheDocument();
   });
 
   it("filters by source when chip is clicked", async () => {
     mockFetch.mockResolvedValueOnce(
       ok([
         cand({ id: 1, source: "hn", title: "HN story" }),
-        cand({ id: 2, source: "x", title: null, text: "tweet body" }),
-        cand({ id: 3, source: "github", title: "gh release" }),
+        cand({ id: 2, source: "github", title: "gh release" }),
       ]),
     );
 
@@ -68,12 +67,11 @@ describe("CandidatesInspector", () => {
     await screen.findByText("HN story");
 
     await act(async () => {
-      screen.getByRole("button", { name: /^x$/i, pressed: false }).click();
+      screen.getByRole("button", { name: /^github$/i, pressed: false }).click();
     });
 
     expect(screen.queryByText("HN story")).not.toBeInTheDocument();
-    expect(screen.queryByText("gh release")).not.toBeInTheDocument();
-    expect(screen.getByText("tweet body")).toBeInTheDocument();
+    expect(screen.getByText("gh release")).toBeInTheDocument();
   });
 
   it("respects the 'active only' toggle", async () => {

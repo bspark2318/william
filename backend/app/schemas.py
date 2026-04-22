@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, Field, field_serializer, model_validator
+from pydantic import BaseModel, Field, field_serializer, model_validator  # noqa: F401
 
 
 class StoryOut(BaseModel):
@@ -101,30 +101,6 @@ class CandidateVideoOut(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class XBulletSource(BaseModel):
-    url: str
-    author_handle: str
-    author_name: str | None = None
-
-
-class XBullet(BaseModel):
-    text: str
-    sources: list[XBulletSource]
-
-
-class XTopicDigestOut(BaseModel):
-    """Served shape for a synthesized X topic digest."""
-
-    source: Literal["x"] = "x"
-    id: int
-    rank_score: float | None = None
-    display_order: int
-    topic: str
-    bullets: list[XBullet]
-
-    model_config = {"from_attributes": True}
-
-
 class HNPostOut(BaseModel):
     """Served shape for an HN post row."""
 
@@ -177,6 +153,6 @@ class GitHubPostOut(BaseModel):
 
 
 DevPostOut = Annotated[
-    Union[XTopicDigestOut, HNPostOut, GitHubPostOut],
+    Union[HNPostOut, GitHubPostOut],
     Field(discriminator="source"),
 ]

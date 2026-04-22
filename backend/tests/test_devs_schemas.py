@@ -5,83 +5,12 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from app.models import DevPost, XTopicDigestRow
-from app.schemas import (
-    DevPostOut,
-    GitHubPostOut,
-    HNPostOut,
-    XBullet,
-    XBulletSource,
-    XTopicDigestOut,
-)
+from app.models import DevPost
+from app.schemas import DevPostOut, GitHubPostOut, HNPostOut
 
 
 def _dt(year=2026, month=4, day=17, hour=14, minute=30):
     return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
-
-
-# ---------------------------------------------------------------------------
-# XTopicDigestOut — instantiate + serialize
-# ---------------------------------------------------------------------------
-
-
-def test_x_topic_digest_out_instantiate_and_dump():
-    bullet = XBullet(
-        text="Sub-agents via MCP are taking off.",
-        sources=[
-            XBulletSource(
-                url="https://x.com/simonw/status/1",
-                author_handle="simonw",
-                author_name="Simon Willison",
-            )
-        ],
-    )
-    digest = XTopicDigestOut(
-        id=1,
-        rank_score=9.1,
-        display_order=6,
-        topic="MCP patterns",
-        bullets=[bullet],
-    )
-    assert digest.source == "x"
-    dumped = digest.model_dump()
-    assert dumped["source"] == "x"
-    assert dumped["topic"] == "MCP patterns"
-    assert dumped["bullets"][0]["text"] == "Sub-agents via MCP are taking off."
-    assert dumped["bullets"][0]["sources"][0]["author_handle"] == "simonw"
-    # No url / published_at on X digest shape
-    assert "url" not in dumped
-    assert "published_at" not in dumped
-
-
-def test_x_topic_digest_out_from_orm(db_session):
-    digest = XTopicDigestRow(
-        topic="MCP patterns",
-        bullets=[
-            {
-                "text": "Sub-agents via MCP.",
-                "sources": [
-                    {
-                        "url": "https://x.com/simonw/status/1",
-                        "author_handle": "simonw",
-                        "author_name": "Simon Willison",
-                    }
-                ],
-            }
-        ],
-        rank_score=9.1,
-        is_active=True,
-        display_order=6,
-    )
-    db_session.add(digest)
-    db_session.commit()
-    db_session.refresh(digest)
-
-    out = XTopicDigestOut.model_validate(digest)
-    assert out.source == "x"
-    assert out.topic == "MCP patterns"
-    assert out.display_order == 6
-    assert out.bullets[0].sources[0].author_handle == "simonw"
 
 
 # ---------------------------------------------------------------------------
@@ -242,28 +171,6 @@ def test_devpost_out_union_routes_github():
     assert parsed.repo == "foo/bar"
 
 
-def test_devpost_out_union_routes_x():
-    adapter = TypeAdapter(DevPostOut)
-    parsed = adapter.validate_python(
-        {
-            "source": "x",
-            "id": 3,
-            "display_order": 6,
-            "topic": "MCP",
-            "bullets": [
-                {
-                    "text": "t",
-                    "sources": [
-                        {"url": "https://x.com/a/1", "author_handle": "a"}
-                    ],
-                }
-            ],
-        }
-    )
-    assert isinstance(parsed, XTopicDigestOut)
-    assert parsed.topic == "MCP"
-
-
 def test_devpost_out_union_rejects_unknown_source():
     adapter = TypeAdapter(DevPostOut)
     with pytest.raises(ValidationError):
@@ -300,24 +207,9 @@ def test_devpost_out_list_serialization_mixed():
             repo="foo/bar",
             title="foo/bar v1",
         ),
-        XTopicDigestOut(
-            id=3,
-            display_order=6,
-            topic="MCP",
-            bullets=[
-                XBullet(
-                    text="t",
-                    sources=[
-                        XBulletSource(url="https://x.com/a/1", author_handle="a")
-                    ],
-                )
-            ],
-        ),
     ]
     dumped = adapter.dump_python(items)
-    assert [d["source"] for d in dumped] == ["hn", "github", "x"]
-    assert [d["display_order"] for d in dumped] == [1, 4, 6]
-    # HN + GitHub have published_at as ISO string; X does not
+    assert [d["source"] for d in dumped] == ["hn", "github"]
+    assert [d["display_order"] for d in dumped] == [1, 4]
     assert isinstance(dumped[0]["published_at"], str)
     assert isinstance(dumped[1]["published_at"], str)
-    assert "published_at" not in dumped[2]

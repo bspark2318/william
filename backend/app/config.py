@@ -88,7 +88,6 @@ PUBLISH_DAY: str = os.getenv("PUBLISH_DAY", "monday")
 # /api/devs feed — skill-development feed for agentic coders
 # ---------------------------------------------------------------------------
 
-APIFY_TOKEN: str = os.getenv("APIFY_TOKEN", "")
 GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
 
 _devs_slots = (_devs_cfg.get("slot_allocation") or {}) if _devs_cfg else {}
@@ -97,12 +96,6 @@ DEV_FEED_SIZE_HN: int = int(os.getenv("DEV_FEED_SIZE_HN", str(_devs_slots.get("h
 DEV_FEED_SIZE_GITHUB: int = int(
     os.getenv("DEV_FEED_SIZE_GITHUB", str(_devs_slots.get("github", 2)))
 )
-DEV_FEED_SIZE_X_TOPICS: int = int(
-    os.getenv("DEV_FEED_SIZE_X_TOPICS", str(_devs_slots.get("x_topics", 3)))
-)
-
-MAX_X_HANDLES: int = int(os.getenv("MAX_X_HANDLES", "50"))
-APIFY_MONTHLY_TWEET_CAP: int = int(os.getenv("APIFY_MONTHLY_TWEET_CAP", "15000"))
 
 # Full devs config dict exposed for pipeline / ranker consumption.
 DEVS_CONFIG: dict = _devs_cfg

@@ -1,41 +1,6 @@
 # Configuration for the /api/devs/posts skill-development feed.
 # Edit values here; env vars govern cadence + budgets (see config.py).
 
-x_handles:
-  tier_a:
-    - karpathy
-    - simonw
-    - HamelHusain
-    - swyx
-    - jxnlco
-    - eugeneyan
-    - AnthropicAI
-    - OpenAIDevs
-    - cursor_ai
-    - aider_chat
-    - hwchase17
-    - jerryjliu0
-  tier_b:
-    - rasbt
-    - lateinteraction
-    - sh_reya
-    - clefourrier
-    - aparnadhinak
-    - thorwebdev
-    - mattshumer_
-  research_practical:
-    - _jasonwei
-    - karinanguyen_
-    - tri_dao
-    - danielhanchen
-    - goodside
-    - srush_nlp
-    - emollick
-  research_deep:
-    - denny_zhou
-    - giffmana
-    - cwolferesearch
-
 hn_keyword_allowlist:
   - claude code
   - cursor
@@ -125,4 +90,3 @@ github_curated_repos:
 slot_allocation:
   hn: 3
   github: 2
-  x_topics: 3

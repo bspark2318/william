@@ -155,45 +155,6 @@ class DevPost(Base):
     __table_args__ = (UniqueConstraint("source", "url", name="uq_dev_posts_source_url"),)
 
 
-class CandidateXTweet(Base):
-    """Raw tweets pulled pre-synthesis for the X pipeline."""
-
-    __tablename__ = "candidate_x_tweets"
-
-    id = Column(Integer, primary_key=True, index=True)
-    url = Column(String, unique=True, nullable=False)
-    author_handle = Column(String, nullable=False, index=True)
-    author_name = Column(String, nullable=True)
-    author_avatar_url = Column(String, nullable=True)
-    text = Column(Text, nullable=False)
-    likes = Column(Integer, nullable=True)
-    reposts = Column(Integer, nullable=True)
-    replies = Column(Integer, nullable=True)
-    published_at = Column(DateTime(timezone=True), nullable=False)
-    collected_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
-
-    quality_score = Column(Float, nullable=True)
-    topic_cluster = Column(String, nullable=True)
-    used_in_digest_id = Column(
-        Integer, ForeignKey("x_topic_digests.id"), nullable=True
-    )
-
-
-class XTopicDigestRow(Base):
-    """Synthesized X output — one row per published topic digest."""
-
-    __tablename__ = "x_topic_digests"
-
-    id = Column(Integer, primary_key=True, index=True)
-    topic = Column(String, nullable=False)
-    # list[{text, sources: [{url, author_handle, author_name}]}]
-    bullets = Column(JSON, nullable=False)
-    rank_score = Column(Float, nullable=True)
-    is_active = Column(Boolean, default=False, nullable=False)
-    display_order = Column(Integer, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
-
-
 class RepoStarSnapshot(Base):
     """Periodic star counts per repo, for GitHub velocity calculation."""
 
@@ -203,19 +164,3 @@ class RepoStarSnapshot(Base):
     repo = Column(String, nullable=False, index=True)
     stars = Column(Integer, nullable=False)
     observed_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
-
-
-class DiscoveredHandle(Base):
-    """X handles surfaced by the weekly discovery pass."""
-
-    __tablename__ = "discovered_handles"
-
-    id = Column(Integer, primary_key=True, index=True)
-    handle = Column(String, unique=True, nullable=False)
-    first_seen_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
-    last_seen_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
-    seed_engagement_count = Column(Integer, default=0, nullable=False)
-    seed_handles = Column(JSON, nullable=True)  # list[str]
-    status = Column(
-        String, default="pending", nullable=False
-    )  # "pending" | "added" | "ignored"

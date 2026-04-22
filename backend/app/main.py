@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .database import Base, SessionLocal, engine, ensure_sqlite_columns
-from .models import DevPost, Issue, XTopicDigestRow
+from .models import DevPost, Issue
 from .routers import devs, issues
 from .routers.admin import router as admin_router
 from .scheduler import start_scheduler, stop_scheduler
@@ -56,7 +56,7 @@ def _bootstrap_all_if_empty() -> None:
     )
     _bootstrap_pipeline(
         "devs",
-        lambda db: not (db.query(DevPost).first() or db.query(XTopicDigestRow).first()),
+        lambda db: db.query(DevPost).first() is None,
         collect_dev_candidates,
         publish_dev_feed,
     )
