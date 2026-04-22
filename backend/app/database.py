@@ -59,6 +59,9 @@ def ensure_sqlite_columns() -> None:
                         text(f"ALTER TABLE candidate_videos ADD COLUMN {col} {typ}")
                     )
 
+        for orphan in ("candidate_x_tweets", "x_topic_digests", "discovered_handles"):
+            conn.execute(text(f"DROP TABLE IF EXISTS {orphan}"))
+
 
 def get_db():
     db = SessionLocal()
