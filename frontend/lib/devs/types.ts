@@ -4,27 +4,6 @@ export interface BasePost {
   display_order: number;
 }
 
-export interface XBulletSource {
-  url: string;
-  author_handle: string;
-  author_name?: string;
-}
-
-export interface XBullet {
-  text: string;
-  sources: XBulletSource[];
-}
-
-/**
- * A topic-level digest of what top engineers are saying on X.
- * Backend synthesizes bullets across multiple tweets per topic.
- */
-export interface XTopicDigest extends BasePost {
-  source: "x";
-  topic: string;
-  bullets: XBullet[];
-}
-
 export interface HNPost extends BasePost {
   source: "hn";
   url: string;
@@ -59,6 +38,4 @@ export interface GitHubPost extends BasePost {
   topics?: string[];
 }
 
-export type DevPost = XTopicDigest | HNPost | GitHubPost;
-
-export type DevSource = DevPost["source"];
+export type DevPost = HNPost | GitHubPost;

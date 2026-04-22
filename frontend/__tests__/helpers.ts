@@ -1,5 +1,5 @@
 import { Story, FeaturedVideo, Issue } from "@/lib/types";
-import { XTopicDigest, HNPost, GitHubPost } from "@/lib/devs/types";
+import { HNPost, GitHubPost } from "@/lib/devs/types";
 
 export function makeStory(overrides: Partial<Story> = {}): Story {
   return {
@@ -33,26 +33,6 @@ export function makeIssue(overrides: Partial<Issue> = {}): Issue {
     edition: 1,
     stories: [makeStory()],
     featured_videos: [],
-    ...overrides,
-  };
-}
-
-export function makeXTopicDigest(
-  overrides: Partial<XTopicDigest> = {},
-): XTopicDigest {
-  return {
-    id: 1,
-    source: "x",
-    display_order: 1,
-    topic: "evals",
-    bullets: [
-      {
-        text: "A sample bullet on evals.",
-        sources: [
-          { url: "https://x.com/testuser/status/1", author_handle: "testuser" },
-        ],
-      },
-    ],
     ...overrides,
   };
 }

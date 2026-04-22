@@ -8,7 +8,7 @@ import {
 } from "@/lib/devs/admin-api";
 import ErrorBanner from "./ErrorBanner";
 
-type SourceFilter = "all" | "x" | "hn" | "github";
+type SourceFilter = "all" | "hn" | "github";
 
 export default function CandidatesInspector() {
   const [data, setData] = useState<Candidate[] | null>(null);
@@ -70,7 +70,7 @@ export default function CandidatesInspector() {
         <span className="text-xs uppercase tracking-widest text-[#71717a] mr-2">
           source:
         </span>
-        {(["all", "x", "hn", "github"] as const).map((s) => (
+        {(["all", "hn", "github"] as const).map((s) => (
           <button
             key={s}
             type="button"
@@ -108,7 +108,7 @@ export default function CandidatesInspector() {
               <tr>
                 <th className="text-left px-3 py-2 w-8" />
                 <th className="text-left px-3 py-2">src</th>
-                <th className="text-left px-3 py-2">title / text</th>
+                <th className="text-left px-3 py-2">title</th>
                 <th className="text-right px-3 py-2">imp</th>
                 <th className="text-right px-3 py-2">rank</th>
                 <th className="text-center px-3 py-2">active</th>
@@ -128,7 +128,7 @@ export default function CandidatesInspector() {
               ) : (
                 filtered.map((c) => {
                   const isOpen = expanded.has(c.id);
-                  const label = c.title ?? c.text ?? c.url;
+                  const label = c.title ?? c.url;
                   return (
                     <FragmentRow
                       key={c.id}
@@ -229,13 +229,8 @@ function FragmentRow({
   );
 }
 
-function SourceTag({ source }: { source: "x" | "hn" | "github" }) {
-  const color =
-    source === "x"
-      ? "text-[#7dd3fc]"
-      : source === "hn"
-        ? "text-[#fbbf24]"
-        : "text-[#7cffb2]";
+function SourceTag({ source }: { source: "hn" | "github" }) {
+  const color = source === "hn" ? "text-[#fbbf24]" : "text-[#7cffb2]";
   return (
     <span className={`${color} uppercase tracking-widest`}>{source}</span>
   );

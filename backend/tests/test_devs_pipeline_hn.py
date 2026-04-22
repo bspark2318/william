@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 
-from app.models import DevPost, XTopicDigestRow
+from app.models import DevPost
 
 
 def test_collect_hn_inserts_rows_and_scores(db_session, monkeypatch):
@@ -171,9 +171,9 @@ def test_publish_dev_feed_deactivates_previous_issue(db_session, monkeypatch):
     from app.services import devs_pipeline, devs_ranker
 
     now = datetime.now(timezone.utc)
-    # Stale rows outside every publish lookback window (so they won't be
+    # Stale row outside every publish lookback window (so it won't be
     # republished) but inside the 30-day retention window (so purge won't
-    # delete them). This isolates the _deactivate_active step.
+    # delete it). This isolates the _deactivate_active step.
     stale_ts = now - timedelta(days=10)
     old_hn = DevPost(
         source="hn",
@@ -188,15 +188,7 @@ def test_publish_dev_feed_deactivates_previous_issue(db_session, monkeypatch):
         points=10,
         comments=1,
     )
-    old_x = XTopicDigestRow(
-        topic="stale",
-        bullets=[{"text": "x", "sources": [{"url": "u", "author_handle": "a"}]}],
-        rank_score=5.0,
-        is_active=True,
-        display_order=6,
-        created_at=stale_ts,
-    )
-    db_session.add_all([old_hn, old_x])
+    db_session.add(old_hn)
     db_session.commit()
 
     # No-op every publish path so we assert only deactivation behavior.
@@ -211,15 +203,10 @@ def test_publish_dev_feed_deactivates_previous_issue(db_session, monkeypatch):
             "has_breaking_changes": False,
         },
     )
-    monkeypatch.setattr(devs_ranker, "cluster_tweets_into_topics", lambda t: {})
-    monkeypatch.setattr(devs_ranker, "synthesize_topic_digest", lambda t, ts: [])
 
     result = devs_pipeline.publish_dev_feed(db_session)
     assert result is not None
 
     db_session.refresh(old_hn)
-    db_session.refresh(old_x)
     assert old_hn.is_active is False
     assert old_hn.display_order is None
-    assert old_x.is_active is False
-    assert old_x.display_order is None

@@ -3,14 +3,10 @@
 import { useState } from "react";
 import PipelineControls from "./PipelineControls";
 import CandidatesInspector from "./CandidatesInspector";
-import HandleManagement from "./HandleManagement";
-import BudgetPanel from "./BudgetPanel";
 
 const TABS = [
   { id: "pipeline", label: "pipeline" },
   { id: "candidates", label: "candidates" },
-  { id: "handles", label: "handles" },
-  { id: "budget", label: "budget" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -55,8 +51,6 @@ export default function AdminConsole() {
       >
         {active === "pipeline" && <PipelineControls />}
         {active === "candidates" && <CandidatesInspector />}
-        {active === "handles" && <HandleManagement />}
-        {active === "budget" && <BudgetPanel />}
       </div>
     </div>
   );

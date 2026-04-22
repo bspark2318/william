@@ -1,21 +1,15 @@
 import type { Metadata } from "next";
 import DevHeader from "@/components/devs/DevHeader";
-import XTopicTabs from "@/components/devs/XTopicTabs";
 import HNPostCard from "@/components/devs/HNPostCard";
 import GitHubRotator from "@/components/devs/GitHubRotator";
 import { getDevPosts } from "@/lib/devs/api";
 import { MOCK_DEV_POSTS } from "@/lib/devs/mock-data";
-import {
-  DevPost,
-  GitHubPost,
-  HNPost,
-  XTopicDigest,
-} from "@/lib/devs/types";
+import { DevPost, GitHubPost, HNPost } from "@/lib/devs/types";
 
 export const metadata: Metadata = {
   title: "The Context Window — For Developers",
   description:
-    "Signals to level up as an AI-era engineer — curated posts from X, Hacker News, and GitHub.",
+    "Signals to level up as an AI-era engineer — curated posts from Hacker News and GitHub.",
 };
 
 async function fetchPosts(): Promise<DevPost[]> {
@@ -31,7 +25,6 @@ async function fetchPosts(): Promise<DevPost[]> {
 function bySource(posts: DevPost[]) {
   const byDisplay = [...posts].sort((a, b) => a.display_order - b.display_order);
   return {
-    x: byDisplay.filter((p): p is XTopicDigest => p.source === "x"),
     hn: byDisplay.filter((p): p is HNPost => p.source === "hn"),
     github: byDisplay.filter((p): p is GitHubPost => p.source === "github"),
   };
@@ -63,22 +56,13 @@ function SectionLabel({
 
 export default async function DevsPage() {
   const posts = await fetchPosts();
-  const { x, hn, github } = bySource(posts);
+  const { hn, github } = bySource(posts);
 
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-8 py-10 md:py-16">
       <DevHeader />
 
       <div className="space-y-10">
-        {x.length > 0 && (
-          <section>
-            <SectionLabel accent="#7dd3fc" size="lg">
-              x
-            </SectionLabel>
-            <XTopicTabs topics={x} />
-          </section>
-        )}
-
         {hn.length > 0 && (
           <section>
             <SectionLabel accent="#fbbf24">hn</SectionLabel>

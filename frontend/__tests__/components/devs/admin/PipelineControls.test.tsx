@@ -32,8 +32,6 @@ describe("PipelineControls", () => {
       ok({
         status: "ok",
         stories_added: 5,
-        videos_added: 0,
-        tweets_added: 12,
       }),
     );
 
@@ -55,7 +53,7 @@ describe("PipelineControls", () => {
 
   it("fires POST /publish on click", async () => {
     mockFetch.mockResolvedValueOnce(
-      ok({ status: "published", feed_size: 8, digest_title: "today" }),
+      ok({ status: "published", feed_size: 8 }),
     );
 
     render(<PipelineControls />);
@@ -96,8 +94,6 @@ describe("PipelineControls", () => {
         ok({
           status: "ok",
           stories_added: 0,
-          videos_added: 0,
-          tweets_added: 0,
         }),
       );
     });
