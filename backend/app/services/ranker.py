@@ -65,9 +65,8 @@ Below are the past 7 days' finalist articles with full summaries.
 Select the 5 best for publication and rank them 1 (top) to 5.
 
 Rules:
-- Pick AT MOST 2 stories on the same topic or event (diversity matters)
+- Pick AT MOST 1 story per topic or event — if multiple cover the same story, keep only the strongest one and drop the rest (diversity matters)
 - Prefer primary sources and original reporting
-- If two stories cover the same event, keep only the better one
 - Reject anything that is a listicle, explainer, or opinion piece with no new facts
 - If fewer than 5 meet the bar, return fewer
 
@@ -83,14 +82,13 @@ Select the 3 best for publication and rank them 1 (top) to 3.
 Some entries may have been highlighted in a recent edition; if one is still among the strongest and most substantive choices, you may include it again.
 
 Rules:
-- Pick AT MOST 2 videos on the same topic (diversity matters)
+- Pick AT MOST 1 video per topic — if multiple cover the same story, keep only the strongest one and drop the rest (diversity matters)
 - Prefer deep analysis and original reporting over reaction/commentary
 - Avoid selecting 2+ news roundups — at most 1
 - If a transcript excerpt is provided, use it to judge actual content quality and depth
 - At least one video should be a demo or deep-dive if available
 - Higher engagement_pct and views_per_hour signal quality — prefer these over raw views
 - Channel tier "top"/"good" adds credibility; "low" is a red flag
-- If two videos cover the exact same story, keep the better one
 - If fewer than 3 meet the bar, return fewer
 
 Return ONLY a JSON array: [{"id": <int>, "rank": <int>, "topic": "<2-3 word topic>"}]
